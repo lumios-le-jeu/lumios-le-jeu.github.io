@@ -6,26 +6,90 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    html,body{margin:0;padding:0;background:#0b1020;color:#fff;font-family:Arial,Helvetica,sans-serif}
-    #canvas{display:block;width:100vw;height:100vh}
+    html,body {
+      margin:0; padding:0;
+      background:#0b1020; color:#fff;
+      font-family:Arial,Helvetica,sans-serif;
+      height:100%; width:100%;
+      overflow:hidden;
+    }
+    #canvas {
+      display:block;
+      width:100vw; height:100vh;
+    }
 
-    /* Panneau gauche */
-    #panel{position:fixed;left:12px;top:50%;transform:translateY(-50%);width:140px;z-index:5}
-    .card{background:#131a3a;border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);margin-bottom:8px}
-    #brand{background:#e65a6a;color:#fff;font-weight:bold;font-size:20px;letter-spacing:2px;text-align:center}
-    .row{display:flex;justify-content:space-between;align-items:center;font-size:14px}
-    .dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
+    /* Panneau gauche (desktop) */
+    #panel {
+      position:fixed;
+      left:12px; top:50%;
+      transform:translateY(-50%);
+      width:140px; z-index:5;
+    }
+    .card {
+      background:#131a3a;
+      border-radius:10px;
+      padding:10px;
+      box-shadow:0 6px 16px rgba(0,0,0,.25);
+      margin-bottom:8px;
+    }
+    #brand {
+      background:#e65a6a; color:#fff;
+      font-weight:bold; font-size:20px;
+      letter-spacing:2px; text-align:center;
+    }
+    .row {display:flex; justify-content:space-between; align-items:center; font-size:14px}
+    .dot {width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
     .g{background:#38d67a}.b{background:#4da6ff}
     #timer{font-weight:bold;text-align:center}
     #powerBarWrap{height:10px;background:#0d1330;border-radius:999px;overflow:hidden}
     #powerBar{height:100%;width:0%}
-    #btnBuy{display:block;width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;text-align:center;text-decoration:none;font-weight:bold;background:#ff4d6d;color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.25);cursor:pointer;box-sizing:border-box;}
-    #btnBuy:hover{ filter:brightness(1.08)}
-    #btnReplay{cursor:pointer;background:#4da6ff;color:#fff;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%;margin-top:6px;box-shadow:0 6px 16px rgba(0,0,0,.25);box-sizing:border-box}
-    #btnReplay:hover{ filter:brightness(1.08); }
-    #btnNext {cursor:pointer;background:#ffb74a;color:#000;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%;margin-top:6px}
-    #btnMode{cursor:pointer;background:#38d67a;color:#000;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%}
+
+    /* Boutons */
+    #btnMode, #btnNext, #btnReplay, #btnBuy {
+      display:block;
+      width:100%;
+      margin-top:6px;
+      padding:10px 12px;
+      border-radius:8px;
+      text-align:center;
+      font-weight:bold;
+      cursor:pointer;
+      box-shadow:0 6px 16px rgba(0,0,0,.25);
+      border:none;
+    }
+    #btnMode{background:#38d67a;color:#000;}
+    #btnNext{background:#ffb74a;color:#000;}
+    #btnReplay{background:#4da6ff;color:#fff;}
+    #btnBuy{background:#ff4d6d;color:#fff;text-decoration:none;}
+    #btnBuy:hover{filter:brightness(1.08);}
+
+    /* Responsive mobile (vertical) */
+    @media (max-width: 768px) {
+      #panel {
+        position: fixed;
+        bottom: 0; top: auto; left: 0;
+        width: 100%; transform: none;
+        display: flex; flex-wrap: wrap;
+        justify-content: space-around;
+        align-items: center;
+        padding: 6px;
+        background: rgba(19,26,58,0.95);
+      }
+
+      /* éléments dans la barre */
+      #panel .card, 
+      #btnMode, #btnNext, #btnReplay, #btnBuy {
+        margin: 4px;
+        flex: 1 1 45%;   /* 2 éléments par ligne */
+        text-align: center;
+        font-size: 14px;
+      }
+
+      #brand {display:none;} /* pas de gros logo */
+      #timer {font-size:16px;}
+    }
   </style>
+
 </head>
 <body>
   <!-- Panneau latéral -->
