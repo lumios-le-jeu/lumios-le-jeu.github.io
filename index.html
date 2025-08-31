@@ -71,29 +71,26 @@
     #btnBuy:hover{filter:brightness(1.08);}
 
     /* Responsive mobile (vertical) */
-    @media (max-width:760px){
-      body {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;   /* occupe toute la hauteur écran */
-        overflow: hidden;
-      }
-
-      #canvas {
-        flex: 1 1 auto;  /* canvas prend tout l’espace dispo sauf panel */
-        width: 100%;
-        height: auto;    /* hauteur calculée automatiquement */
-      }
-
+    @media (max-width: 768px) {
       #panel {
-        flex: 0 0 auto;
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
-        padding: 10px;
-        background: rgba(19,26,58,0.95);
-        position: relative; /* n’écrase plus le canvas */
+        position:relative !important;   /* panel sous le canvas */
+        left:auto; top:auto; bottom:auto;
+        transform:none;
+        width:100%;
+        max-width:420px;
+        margin:16px auto;
+        z-index:1;
       }
+
+      #panel .card,
+      #btnMode, #btnNext, #btnReplay, #btnBuy {
+        margin:6px 0;
+        width:100%;  /* 1 bouton par ligne */
+        flex:none;
+      }
+
+      #brand {display:none;} /* pas de gros logo sur mobile */
+      #timer {font-size:16px;}
     }
   </style>
 
