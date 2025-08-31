@@ -71,24 +71,24 @@
     #btnBuy:hover{filter:brightness(1.08);}
 
     /* Responsive mobile (vertical) */
-    @media (max-width:768px){
+    @media (max-width:614px){
       body {
         display: flex;
         flex-direction: column;
-        height: 100vh;   /* occupe toute la hauteur écran */
+        height: 80vh;   /* occupe toute la hauteur écran */
         overflow: hidden;
       }
 
       #canvas {
         flex: 1 1 auto;  /* canvas prend tout l’espace dispo sauf panel */
-        width: 100%;
+        width: 80%;
         height: auto;    /* hauteur calculée automatiquement */
       }
 
       #panel {
         flex: 0 0 auto;
-        width: 100%;
-        max-width: 100%;
+        width: 80%;
+        max-width: 80%;
         margin: 0;
         padding: 10px;
         background: rgba(19,26,58,0.95);
