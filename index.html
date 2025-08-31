@@ -137,27 +137,32 @@ function layout(){
   const midX = canvas.width * 0.5;
   const midY = canvas.height * 0.5;
 
-  // marge latérale pour éviter tout contact immédiat avec les murs
-  const marginX = Math.max(16, canvas.width * 0.08);     // 8% de la largeur mini 16px
-  // écart par défaut et écart max possible pour faire entrer toute la rangée
-  const defaultSpacing = R_LUMIE * 4;
-  const maxRowWidth = (canvas.width - marginX * 2) - R_LUMIE * 2; // place restante entre marges
-  const fitSpacing = (LUMIES_N > 1) ? (maxRowWidth / (LUMIES_N - 1)) : 0;
+  // --- spacing par défaut (desktop) ---
+  let spacing = LUMIE_SPACING;        // = R_LUMIE * 4 (ton paramètre)
+  let startX  = midX - spacing * (LUMIES_N - 1) / 2;
 
-  // on choisit le plus petit des deux (pour garantir que ça rentre)
-  const spacing = Math.min(defaultSpacing, fitSpacing);
+  // --- si écran "mobile" (étroit ou portrait), on compacte la rangée ---
+  const isMobile = (canvas.width <= 768) || (window.innerHeight > window.innerWidth);
+  if (isMobile) {
+    const marginX = Math.max(16, canvas.width * 0.06);      // marge contre les murs
+    const usable  = canvas.width - 2 * (marginX + R_LUMIE); // place dispo entre marges (en enlevant 1 rayon de chaque côté)
+    const fitSpacing = (LUMIES_N > 1) ? usable / (LUMIES_N - 1) : 0;
 
-  // largeur réelle de la rangée avec ce spacing
-  const rowWidth = (LUMIES_N > 1) ? spacing * (LUMIES_N - 1) : 0;
-  // point de départ pour que toute la rangée soit centrée ET dans les marges
-  const startX = Math.max(marginX + R_LUMIE, midX - rowWidth / 2);
+    // on réduit l’écart si nécessaire pour que tout rentre
+    spacing = Math.min(LUMIE_SPACING, fitSpacing);
 
+    // recalcule un départ centré puis "clamp" dans les marges
+    const rowWidth = spacing * (LUMIES_N - 1);
+    startX = Math.max(marginX + R_LUMIE, midX - rowWidth / 2);
+  }
+
+  // placer les 5 lumies, toutes rouges au départ
   for (let i = 0; i < LUMIES_N; i++) {
     const x = startX + i * spacing;
     lumies.push({ x, y: midY, vx: 0, vy: 0, r: R_LUMIE, color: 'red' });
   }
 
-  // replacer le Luminator à la base du joueur courant
+  // position du Luminator selon le joueur courant
   const launchY = canvas.height * 0.10;
   if (currentPlayer === 1) {
     ball = { x: midX, y: canvas.height - launchY, vx: 0, vy: 0, r: R_BALL, active: false, age: 0 };
@@ -165,11 +170,12 @@ function layout(){
     ball = { x: midX, y: launchY, vx: 0, vy: 0, r: R_BALL, active: false, age: 0 };
   }
 
-  // remets aussi les compteurs
+  // reset tour + score visuel
   gainedThisTurn = 0;
   lostThisTurn   = 0;
   updateScore();
 }
+
 
 
 /* ===== Entrées ===== */
