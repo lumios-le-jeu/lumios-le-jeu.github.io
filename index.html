@@ -11,11 +11,15 @@
       background:#0b1020; color:#fff;
       font-family:Arial,Helvetica,sans-serif;
       height:100%; width:100%;
-      overflow:hidden;
+      overflow:auto; /* on laisse scroller si besoin */
     }
+
     #canvas {
       display:block;
-      width:100vw; height:100vh;
+      width:100vw;
+      height:100dvh;   /* viewport dynamique mobile */
+      height:100svh;
+      height:100vh;
     }
     
     /* Desktop = panel fixé */
@@ -26,18 +30,6 @@
       transform:translateY(-50%);
       width:140px;
       z-index:5;
-    }
-
-    /* Mobile = panel en dessous */
-    @media (max-width:768px){
-      #panel{
-        position:relative;
-        left:auto; top:auto; transform:none;
-        width:100%;
-        max-width:420px;
-        margin:16px auto;
-        z-index:1;
-      }
     }
 
     .card {
@@ -81,29 +73,27 @@
     /* Responsive mobile (vertical) */
     @media (max-width: 768px) {
       #panel {
-        position: fixed;
-        bottom: 0; top: auto; left: 0;
-        width: 100%; transform: none;
-        display: flex; flex-wrap: wrap;
-        justify-content: space-around;
-        align-items: center;
-        padding: 6px;
-        background: rgba(19,26,58,0.95);
+        position:relative !important;   /* panel sous le canvas */
+        left:auto; top:auto; bottom:auto;
+        transform:none;
+        width:100%;
+        max-width:420px;
+        margin:16px auto;
+        z-index:1;
       }
 
-      /* éléments dans la barre */
-      #panel .card, 
+      #panel .card,
       #btnMode, #btnNext, #btnReplay, #btnBuy {
-        margin: 4px;
-        flex: 1 1 45%;   /* 2 éléments par ligne */
-        text-align: center;
-        font-size: 14px;
+        margin:6px 0;
+        width:100%;  /* 1 bouton par ligne */
+        flex:none;
       }
 
-      #brand {display:none;} /* pas de gros logo */
+      #brand {display:none;} /* pas de gros logo sur mobile */
       #timer {font-size:16px;}
     }
   </style>
+
 
 </head>
 <body>
