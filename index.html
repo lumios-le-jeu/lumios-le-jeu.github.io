@@ -19,6 +19,10 @@
     #timer{font-weight:bold;text-align:center}
     #powerBarWrap{height:10px;background:#0d1330;border-radius:999px;overflow:hidden}
     #powerBar{height:100%;width:0%}
+    #btnBuy{display:block;width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;text-align:center;text-decoration:none;font-weight:bold;background:#ff4d6d;color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.25);cursor:pointer;box-sizing:border-box;}
+    #btnBuy:hover{ filter:brightness(1.08)}
+    #btnReplay{cursor:pointer;background:#4da6ff;color:#fff;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%;margin-top:6px;box-shadow:0 6px 16px rgba(0,0,0,.25);box-sizing:border-box}
+    #btnReplay:hover{ filter:brightness(1.08); }
     #btnNext {cursor:pointer;background:#ffb74a;color:#000;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%;margin-top:6px}
     #btnMode{cursor:pointer;background:#38d67a;color:#000;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%}
   </style>
@@ -40,6 +44,8 @@
     </div>
     <button id="btnMode">🌙 Nuit</button>
     <button id="btnNext">⏭️ Skip</button>
+    <button id="btnReplay">🔄 Rejouer</button>
+    <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">🎁 Précommander un vrai Jeu Lumios pour Noël</a>
   </div>
 
   <canvas id="canvas"></canvas>
@@ -90,6 +96,19 @@ btnNext.onclick=function(){
   }
   endOfTurn();
 };
+
+var btnReplay=document.getElementById('btnReplay');
+btnReplay.onclick=function(){
+  gameOver=false;
+  playerColors={1:null,2:null};
+  currentPlayer=1;
+  gainedThisTurn=0;
+  lostThisTurn=0;
+  winColor=null;
+  confetti=[];
+  layout(); // remet toutes les boules rouges et reset le score
+};
+
 
 /* ===== Couleurs ===== */
 var COLOR_RED='#ff5a67', COLOR_GREEN='#38d67a', COLOR_BLUE='#4da6ff';
