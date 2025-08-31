@@ -148,8 +148,26 @@ function updateScore(){
 }
 
 /* ===== Canvas ===== */
+function bottomUIHeight(){
+  // Si on est en mobile (même breakpoint que ton CSS)
+  if (!window.matchMedia('(max-width: 768px)').matches) return 0;
+  var p = document.getElementById('panel');
+  if (!p) return 0;
+  var r = p.getBoundingClientRect();
+  return r.height || 0;
+}
+
 var canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
-function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; layout(); }
+function resize(){
+  var topSafe = window.matchMedia('(max-width: 768px)').matches ? 0 : 0; // garde 0 ici, ou 10–20 si besoin
+  canvas.width  = window.innerWidth;
+  var hAvail = window.innerHeight - bottomUIHeight() - topSafe;
+  canvas.height = Math.max(360, hAvail);
+  // (optionnel) évite tout recouvrement si tu utilises encore des éléments fixes ailleurs
+  //document.body.style.paddingBottom = bottomUIHeight() + 'px';
+  layout();
+}
+
 window.addEventListener('resize',resize); resize();
 
 var btnNext=document.getElementById('btnNext');
