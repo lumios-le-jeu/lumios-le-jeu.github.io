@@ -11,19 +11,25 @@
       background:#0b1020; color:#fff;
       font-family:Arial,Helvetica,sans-serif;
       height:100%; width:100%;
-      overflow:hidden;
-    }
-    #canvas {
-      display:block;
-      width:100vw; height:100vh;
+      overflow:auto; /* on laisse scroller si besoin */
     }
 
-    /* Panneau gauche (desktop) */
+    #canvas {
+      display:block;
+      width:100vw;
+      height:100dvh;   /* viewport dynamique mobile */
+      height:100svh;
+      height:100vh;
+    }
+    
+    /* Desktop = panel fixé */
     #panel{
-      position:relative;   /* plus de fixed */
-      width:100%;          /* prend toute la largeur */
-      max-width:400px;     /* limite sur desktop */
-      margin:20px auto;    /* centré sous le canvas */
+      position:fixed;
+      left:12px;
+      top:50%;
+      transform:translateY(-50%);
+      width:140px;
+      z-index:5;
     }
 
     .card {
@@ -67,35 +73,30 @@
     /* Responsive mobile (vertical) */
     @media (max-width: 768px) {
       #panel {
-        position: fixed;
-        bottom: 0; top: auto; left: 0;
-        width: 80%; transform: none;
-        display: flex; flex-wrap: wrap;
-        justify-content: space-around;
-        align-items: center;
-        padding: 6px;
-        background: rgba(19,26,58,0.95);
+        position:relative !important;   /* panel sous le canvas */
+        left:auto; top:auto; bottom:auto;
+        transform:none;
+        width:100%;
+        max-width:420px;
+        margin:16px auto;
+        z-index:1;
       }
 
-      /* éléments dans la barre */
-      #panel .card, 
+      #panel .card,
       #btnMode, #btnNext, #btnReplay, #btnBuy {
-        margin: 4px;
-        flex: 1 1 45%;   /* 2 éléments par ligne */
-        text-align: center;
-        font-size: 14px;
+        margin:6px 0;
+        width:100%;  /* 1 bouton par ligne */
+        flex:none;
       }
 
-      #brand {display:none;} /* pas de gros logo */
+      #brand {display:none;} /* pas de gros logo sur mobile */
       #timer {font-size:16px;}
     }
   </style>
 
 </head>
 <body>
-  <canvas id="canvas"></canvas>
-
-    <!-- Panneau latéral -->
+  <!-- Panneau latéral -->
   <div id="panel">
     <div id="brand" class="card">LUMIOS</div>
     <div class="card">
@@ -114,6 +115,8 @@
     <button id="btnReplay">🔄 Rejouer</button>
     <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">🎁 Précommander un vrai Jeu Lumios pour Noël</a>
   </div>
+
+  <canvas id="canvas"></canvas>
 
 <script>
 /* ===== Polyfill rAF ===== */
@@ -149,26 +152,8 @@ function updateScore(){
 }
 
 /* ===== Canvas ===== */
-function bottomUIHeight(){
-  // Si on est en mobile (même breakpoint que ton CSS)
-  if (!window.matchMedia('(max-width: 768px)').matches) return 0;
-  var p = document.getElementById('panel');
-  if (!p) return 0;
-  var r = p.getBoundingClientRect();
-  return r.height || 0;
-}
-
 var canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
-function resize(){
-  var topSafe = window.matchMedia('(max-width: 768px)').matches ? 0 : 0; // garde 0 ici, ou 10–20 si besoin
-  canvas.width  = window.innerWidth;
-  var hAvail = window.innerHeight - bottomUIHeight() - topSafe;
-  canvas.height = Math.max(360, hAvail);
-  // (optionnel) évite tout recouvrement si tu utilises encore des éléments fixes ailleurs
-  //document.body.style.paddingBottom = bottomUIHeight() + 'px';
-  layout();
-}
-
+function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; layout(); }
 window.addEventListener('resize',resize); resize();
 
 var btnNext=document.getElementById('btnNext');
