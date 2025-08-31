@@ -118,6 +118,10 @@ var LUMIES_N=5, R_LUMIE=22, R_BALL=16;
 var LUMIE_SPACING = R_LUMIE * 4;
 var RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
 var POWER_K=0.09, MAX_DRAG=320, BASE_ZONE_RATIO=0.12;
+// Sensibilité des hits
+var MIN_HIT_VN   = 0.03;   // vitesse normale minimale (avant 0.2)
+var MIN_HIT_PEN  = 0.8;    // profondeur de pénétration minimale (en pixels)
+var HIT_COOLDOWN = 180;    // anti double-hit en ms
 
 
 /* ===== État ===== */
@@ -138,7 +142,7 @@ function layout(){
   const midY = canvas.height * 0.5;
 
   // --- spacing par défaut (desktop) ---
-  let spacing = LUMIE_SPACING;        // = R_LUMIE * 4 (ton paramètre)
+  let spacing = LUMIE_SPACING;                 // = R_LUMIE * 4
   let startX  = midX - spacing * (LUMIES_N - 1) / 2;
 
   // --- si écran "mobile" (étroit ou portrait), on compacte la rangée ---
@@ -148,10 +152,8 @@ function layout(){
     const usable  = canvas.width - 2 * (marginX + R_LUMIE); // place dispo entre marges (en enlevant 1 rayon de chaque côté)
     const fitSpacing = (LUMIES_N > 1) ? usable / (LUMIES_N - 1) : 0;
 
-    // on réduit l’écart si nécessaire pour que tout rentre
-    spacing = Math.min(LUMIE_SPACING, fitSpacing);
+    spacing = Math.min(LUMIE_SPACING, fitSpacing);          // réduit si nécessaire
 
-    // recalcule un départ centré puis "clamp" dans les marges
     const rowWidth = spacing * (LUMIES_N - 1);
     startX = Math.max(marginX + R_LUMIE, midX - rowWidth / 2);
   }
@@ -159,7 +161,7 @@ function layout(){
   // placer les 5 lumies, toutes rouges au départ
   for (let i = 0; i < LUMIES_N; i++) {
     const x = startX + i * spacing;
-    lumies.push({ x, y: midY, vx: 0, vy: 0, r: R_LUMIE, color: 'red' });
+    lumies.push({ x, y: midY, vx: 0, vy: 0, r: R_LUMIE, color: 'red', lastHit: 0 });
   }
 
   // position du Luminator selon le joueur courant
@@ -214,7 +216,7 @@ function checkWin(){var c=countColors();if(c.g===LUMIES_N){triggerWin('green');}
 function onLumieHit(L){
   var before=L.color;
   if(before==='red'){
-    L.color=(Math.random()<0.5)?'green':'blue';
+    L.color=(Math.random()<0.005)?'green':'blue';
     if(!playerColors[1]&&!playerColors[2]){
       playerColors[currentPlayer]=L.color;
       playerColors[(currentPlayer===1)?2:1]=(L.color==='green'?'blue':'green');
@@ -229,6 +231,13 @@ function onLumieHit(L){
     if(L.color===playerColors[currentPlayer]&&before!==playerColors[currentPlayer])gainedThisTurn++;
     if(before===playerColors[currentPlayer]&&L.color!==playerColors[currentPlayer])lostThisTurn++;
   }
+}
+
+function tryHit(L){
+  var now = performance.now ? performance.now() : Date.now();
+  if((L.lastHit||0) + HIT_COOLDOWN > now) return; // debounce
+  L.lastHit = now;
+  onLumieHit(L);
 }
 
 function triggerWin(c){
@@ -275,62 +284,110 @@ function endOfTurn(){
   ball.vx=0; ball.vy=0; ball.active=false;
 }
 
-
 /* ===== Physique ===== */
 function step(){
-    stepConfetti();
+  stepConfetti();
   var i,j;
-  if(ball&&ball.active){
-    ball.x+=ball.vx; ball.y+=ball.vy; ball.vx*=FRICTION; ball.vy*=FRICTION; ball.age+=16;
-    if(ball.x<ball.r){ball.x=ball.r;ball.vx=-ball.vx*RESTIT;}
-    if(ball.x>canvas.width-ball.r){ball.x=canvas.width-ball.r;ball.vx=-ball.vx*RESTIT;}
-    if(ball.y<ball.r){ball.y=ball.r;ball.vy=-ball.vy*RESTIT;}
-    if(ball.y>canvas.height-ball.r){ball.y=canvas.height-ball.r;ball.vy=-ball.vy*RESTIT;}
-    for(i=0;i<lumies.length;i++){collideBallLumie(ball,lumies[i]);}
-    if(Math.abs(ball.vx)<0.05&&Math.abs(ball.vy)<0.05){ball.active=false;endOfTurn();}
+
+  // --- Luminator ---
+  if (ball && ball.active){
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    ball.vx *= FRICTION;
+    ball.vy *= FRICTION;
+    ball.age += 16;
+
+    if (ball.x < ball.r){ ball.x = ball.r; ball.vx = -ball.vx * RESTIT; }
+    if (ball.x > canvas.width - ball.r){ ball.x = canvas.width - ball.r; ball.vx = -ball.vx * RESTIT; }
+    if (ball.y < ball.r){ ball.y = ball.r; ball.vy = -ball.vy * RESTIT; }
+    if (ball.y > canvas.height - ball.r){ ball.y = canvas.height - ball.r; ball.vy = -ball.vy * RESTIT; }
+
+    for (i=0; i<lumies.length; i++){ collideBallLumie(ball, lumies[i]); }
+
+    if (Math.abs(ball.vx) < 0.05 && Math.abs(ball.vy) < 0.05){
+      ball.active = false;
+      endOfTurn();
+    }
   }
-  for(i=0;i<lumies.length;i++){
-    var L=lumies[i],hit=false; L.x+=L.vx; L.y+=L.vy; L.vx*=ROLL_F; L.vy*=ROLL_F;
-    if(L.x<L.r){L.x=L.r;L.vx=-L.vx*RESTIT;hit=true;}
-    if(L.x>canvas.width-L.r){L.x=canvas.width-L.r;L.vx=-L.vx*RESTIT;hit=true;}
-    if(L.y<L.r){L.y=L.r;L.vy=-L.vy*RESTIT;hit=true;}
-    if(L.y>canvas.height-L.r){L.y=canvas.height-L.r;L.vy=-L.vy*RESTIT;hit=true;}
-    if(hit)onLumieHit(L);
+
+  // --- Lumies ---
+  for (i=0; i<lumies.length; i++){
+    var L = lumies[i], hit = false;
+
+    L.x += L.vx;
+    L.y += L.vy;
+    L.vx *= ROLL_F;
+    L.vy *= ROLL_F;
+
+    if (L.x < L.r){ L.x = L.r; L.vx = -L.vx * RESTIT; hit = true; }
+    if (L.x > canvas.width - L.r){ L.x = canvas.width - L.r; L.vx = -L.vx * RESTIT; hit = true; }
+    if (L.y < L.r){ L.y = L.r; L.vy = -L.vy * RESTIT; hit = true; }
+    if (L.y > canvas.height - L.r){ L.y = canvas.height - L.r; L.vy = -L.vy * RESTIT; hit = true; }
+
+    if (hit) tryHit(L); // <-- remplace onLumieHit(L) par tryHit(L)
   }
-  for(i=0;i<lumies.length;i++){for(j=i+1;j<lumies.length;j++){collideLumies(lumies[i],lumies[j]);}}
+
+  // --- Collisions entre lumies ---
+  for (i=0; i<lumies.length; i++){
+    for (j=i+1; j<lumies.length; j++){
+      collideLumies(lumies[i], lumies[j]);
+    }
+  }
 }
 
-
-
 function collideBallLumie(B,L){
-  var dx=L.x-B.x, dy=L.y-B.y, d=Math.sqrt(dx*dx+dy*dy), min=B.r+L.r;
-  if(d>0&&d<min){
-    var nx=dx/d, ny=dy/d, ov=min-d;
+  var dx=L.x-B.x, dy=L.y-B.y;
+  var d=Math.sqrt(dx*dx+dy*dy), min=B.r+L.r;
+  if(d>0 && d<min){
+    var nx=dx/d, ny=dy/d;
+    var ov=min-d; // profondeur de pénétration
+
+    // séparation
     B.x-=nx*ov*0.5; B.y-=ny*ov*0.5;
     L.x+=nx*ov*0.5; L.y+=ny*ov*0.5;
 
+    // réponse élastique
     var rvx=B.vx-L.vx, rvy=B.vy-L.vy;
-    var vn=rvx*nx+rvy*ny;
-    if(vn>0) return;
+    var vn=rvx*nx + rvy*ny;
+    if(vn>0) vn=0; // sécurité
 
     var j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
     B.vx+=jx; B.vy+=jy;
     L.vx-=jx; L.vy-=jy;
 
-    // seuil de choc pour déclencher la couleur
-    if(Math.abs(vn) > 0.2){ 
-      onLumieHit(L);
+    // Déclenchement hit : vitesse OU pénétration
+    if (Math.abs(vn) > MIN_HIT_VN || ov > MIN_HIT_PEN){
+      tryHit(L);
     }
   }
 }
 
-function collideLumies(A,B){var dx=B.x-A.x,dy=B.y-A.y,d=Math.sqrt(dx*dx+dy*dy),min=A.r+B.r;
-  if(d>0&&d<min){var nx=dx/d,ny=dy/d,ov=min-d;A.x-=nx*ov*0.5;A.y-=ny*ov*0.5;B.x+=nx*ov*0.5;B.y+=ny*ov*0.5;
-  var rvx=A.vx-B.vx,rvy=A.vy-B.vy,vn=rvx*nx+rvy*ny;var j=-(1+RESTIT)*vn/2,jx=j*nx,jy=j*ny;
-  A.vx+=jx;A.vy+=jy;B.vx-=jx;B.vy-=jy;
-  onLumieHit(A);onLumieHit(B);}
-}
+function collideLumies(A,B){
+  var dx=B.x-A.x, dy=B.y-A.y;
+  var d=Math.sqrt(dx*dx+dy*dy), min=A.r+B.r;
+  if(d>0 && d<min){
+    var nx=dx/d, ny=dy/d;
+    var ov=min-d;
 
+    // séparation
+    A.x-=nx*ov*0.5; A.y-=ny*ov*0.5;
+    B.x+=nx*ov*0.5; B.y+=ny*ov*0.5;
+
+    // réponse
+    var rvx=A.vx-B.vx, rvy=A.vy-B.vy;
+    var vn=rvx*nx + rvy*ny;
+
+    var j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
+    A.vx+=jx; A.vy+=jy;
+    B.vx-=jx; B.vy-=jy;
+
+    // Déclenchement des deux côtés
+    if (Math.abs(vn) > MIN_HIT_VN || ov > MIN_HIT_PEN){
+      tryHit(A);
+      tryHit(B);
+    }
+  }
+}
 
 /* ===== Rendu ===== */
 function drawDashed(x1,y1,x2,y2,seg,space){
