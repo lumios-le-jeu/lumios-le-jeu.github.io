@@ -119,6 +119,7 @@ var LUMIE_SPACING = R_LUMIE * 4;
 var RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
 var POWER_K=0.09, MAX_DRAG=320, BASE_ZONE_RATIO=0.12;
 var COLOR_LOCK_MS = 4000; // délai blocage couleur après un changement
+var AIM_MAX_LEN = 120; // longueur max de la flèche en pixels
 
 // Sensibilité des hits
 var MIN_HIT_VN   = 0.03;   // vitesse normale minimale (avant 0.2)
@@ -452,17 +453,34 @@ function draw(){
 
   // flèche visée
   if(drag){
-    ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=2;
-    drawDashed(drag.sx, drag.sy, drag.x, drag.y, 6, 6);
-    var vx=drag.x-drag.sx, vy=drag.y-drag.sy, ang=Math.atan2(vy,vx);
-    var ax=drag.x, ay=drag.y, l=12;
+    ctx.strokeStyle='rgba(255,255,255,0.55)';
+    ctx.lineWidth=2;
+
+    var vx = drag.x - drag.sx;
+    var vy = drag.y - drag.sy;
+    var len = Math.sqrt(vx*vx + vy*vy);
+
+    // clamp longueur
+    var maxLen = Math.min(len, AIM_MAX_LEN);
+    var ux = vx / (len || 1);
+    var uy = vy / (len || 1);
+    var ex = drag.sx + ux * maxLen;
+    var ey = drag.sy + uy * maxLen;
+
+    // ligne pointillée limitée
+    drawDashed(drag.sx, drag.sy, ex, ey, 6, 6);
+
+    // petit triangle de pointe
+    var ang = Math.atan2(vy, vx);
+    var l = 12;
     ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - l*Math.cos(ang - Math.PI/6), ay - l*Math.sin(ang - Math.PI/6));
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - l*Math.cos(ang + Math.PI/6), ay - l*Math.sin(ang + Math.PI/6));
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - l*Math.cos(ang - Math.PI/6), ey - l*Math.sin(ang - Math.PI/6));
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - l*Math.cos(ang + Math.PI/6), ey - l*Math.sin(ang + Math.PI/6));
     ctx.stroke();
   }
+
 
   // confettis
   for(var cfi=0;cfi<confetti.length;cfi++){
