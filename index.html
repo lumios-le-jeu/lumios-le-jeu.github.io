@@ -2,105 +2,109 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<title>Lumios – mobile + desktop complet</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Lumios – web proto</title>
 <style>
-  html,body{margin:0;padding:0;background:#0b1020;color:#fff;font-family:Arial,Helvetica,sans-serif}
-  /* autorise le scroll vertical sur le canvas (safari iOS) */
-  #canvas { touch-action: pan-y; }
-  /* ===== HUD en haut (timer + puissance + joueur courant) ===== */
+  :root{
+    --bg:#0b1020;
+    --panel:#131a3a;
+    --brand:#e65a6a;
+    --green:#38d67a;
+    --blue:#4da6ff;
+    --red:#ff5a67;
+    --gold:#ffd24a;
+    --text:#fff;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;height:100%;}
+  /* Empêche le double-tap zoom sur mobile */
+  * { touch-action: manipulation; }
+
+  /* HUD en haut (toujours visible) */
   #hud{
-    position:sticky; top:0; z-index:20;
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:10px 12px; background:rgba(11,16,32,.9); backdrop-filter:blur(4px);
-    border-bottom:1px solid rgba(255,255,255,.08);
+    position:fixed; z-index:6; left:0; top:0; right:0;
+    height:56px; background:rgba(8,12,28,.95);
+    display:flex; align-items:center; gap:14px; padding:0 14px;
+    box-shadow:0 6px 16px rgba(0,0,0,.35);
   }
-  #hudLeft{display:flex; align-items:center; gap:16px}
-  #hudTimer{font-weight:bold; font-size:16px}
-  #hudPower{display:flex; align-items:center; gap:8px; min-width:180px}
-  #hudPower span{opacity:.85; font-size:14px}
-  #hudPowerBarWrap{flex:1; height:8px; background:#0d1330; border-radius:999px; overflow:hidden}
-  #hudPowerBar{height:100%; width:0%; background:#4da6ff; transition:width .08s linear}
-  #hudPowerPct{min-width:36px; text-align:right}
-  /* Bannière joueur */
-  #turnBanner{
-    min-width:220px; text-align:center; font-weight:bold;
-    padding:8px 14px; border-radius:10px; border:2px solid rgba(255,80,80,.9);
-    background:rgba(255,255,255,.08);
+  #clock{font-weight:700; font-size:18px; min-width:64px; text-align:left;}
+  #labelPow{opacity:.9; font-size:14px}
+  #powWrap{flex:0 0 120px; height:10px; background:#0d1330; border-radius:999px; overflow:hidden}
+  #powBar{height:100%; width:0%}
+  #powPct{min-width:40px; font-weight:700; text-align:right}
+  #badge{
+    margin-left:auto; font-weight:700; font-size:16px;
+    background:var(--blue); color:#000; padding:8px 14px;
+    border-radius:10px; box-shadow:0 6px 16px rgba(0,0,0,.25);
   }
 
-  /* ===== Canvas (hauteur ajustée dynamiquement par JS) ===== */
-  #canvas{display:block; width:100vw; height:calc(100vh - 56px)}
+  /* Canvas occupe tout l'écran sous le HUD */
+  #wrap{
+    position:relative; width:100vw; height:100vh;
+  }
+  #canvas{
+    position:absolute; inset:56px 0 0 0;   /* sous le HUD */
+    display:block; width:100%; height:calc(100% - 56px);
+  }
 
-  /* ===== Contrôles en bas sur mobile / panneau fixe à gauche sur desktop ===== */
-  #controls{max-width:420px; margin:14px auto; padding:0 12px}
-  .card{background:#131a3a;border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);margin-bottom:8px}
-  #brand{background:#e65a6a;color:#fff;font-weight:bold;font-size:20px;letter-spacing:2px;text-align:center}
+  /* Panneau d’actions */
+  #panel{
+    width:140px;
+    position:fixed; left:12px; top:50%; transform:translateY(-50%);
+    z-index:5;
+  }
+  .card{background:var(--panel);border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);margin-bottom:8px}
+  #brand{background:var(--brand);color:#fff;font-weight:bold;font-size:20px;letter-spacing:2px;text-align:center;border-radius:10px}
   .row{display:flex;justify-content:space-between;align-items:center;font-size:14px}
   .dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
-  .g{background:#38d67a}.b{background:#4da6ff}
-
-  #btnMode,#btnNext,#btnReplay,#btnBuy{
-    display:block;width:100%;margin-top:8px;padding:12px;border-radius:10px;
-    text-align:center;font-weight:bold;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25);border:none
-  }
-  #btnMode{background:#38d67a;color:#000}
+  .g{background:var(--green)} .b{background:var(--blue)}
+  .btn{display:block;width:100%;margin-top:6px;padding:10px 12px;border-radius:8px;text-align:center;font-weight:bold;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25);border:none}
+  #btnMode{background:var(--green);color:#000}
   #btnNext{background:#ffb74a;color:#000}
-  #btnReplay{background:#4da6ff;color:#fff}
-  #btnBuy{background:#ff4d6d;color:#fff;text-decoration:none}
+  #btnReplay{background:var(--blue);color:#fff}
+  #btnBuy{display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;text-align:center;font-weight:700;background:#ff4d6d;color:#fff;text-decoration:none;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+  #btnBuy:hover{filter:brightness(1.08)}
 
-  /* Desktop : panneau fixe à gauche */
-  @media (min-width: 769px){
-    #canvas{width:100vw;height:100vh}
-    #controls{
-      position:fixed; left:12px; top:50%; transform:translateY(-50%);
-      width:160px; margin:0; padding:0; z-index:5;
-    }
-  }
-
-  /* Mobile : plus petite */
+  /* Bandeau latéral masqué sur mobile : panel placé en dessous (scroll) */
   @media (max-width: 768px){
-    #turnBanner{
-      min-width:auto;
-      font-size:14px;
-      padding:6px 10px;
-      border-radius:8px;
+    #panel{
+      position:static; transform:none; width:100%; max-width:420px;
+      margin:18px auto; padding:0 12px;
     }
+    #wrap{height:auto; min-height:100vh;}
+    #canvas{position:relative; inset:auto; width:100%; height:calc(100vh - 56px);}
   }
 </style>
 </head>
 <body>
 
-  <!-- HUD -->
-  <div id="hud">
-    <div id="hudLeft">
-      <div id="hudTimer">00:00</div>
-      <div id="hudPower">
-        <span>Puissance</span>
-        <div id="hudPowerBarWrap"><div id="hudPowerBar"></div></div>
-        <b id="hudPowerPct">0%</b>
-      </div>
-    </div>
-    <div id="turnBanner">JOUEUR 1</div>
-  </div>
+<!-- HUD -->
+<div id="hud">
+  <div id="clock">00:00</div>
+  <div id="labelPow">Puissance</div>
+  <div id="powWrap"><div id="powBar"></div></div>
+  <div id="powPct">0%</div>
+  <div id="badge">JOUEUR 1</div>
+</div>
 
-  <!-- Aire de jeu -->
+<!-- Zone de jeu -->
+<div id="wrap">
   <canvas id="canvas"></canvas>
+</div>
 
-  <!-- Contrôles (bas mobile / fixe gauche desktop) -->
-  <div id="controls">
-    <div id="brand" class="card">LUMIOS</div>
-    <div class="card">
-      <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
-      <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
-    </div>
-    <button id="btnMode">🌙 Nuit</button>
-    <button id="btnNext">⏭️ Skip</button>
-    <button id="btnReplay">🔄 Rejouer</button>
-    <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">
-      🎁 Précommander un vrai Jeu Lumios pour Noël
-    </a>
+<!-- Panneau (desktop à gauche, mobile en dessous après scroll) -->
+<div id="panel">
+  <div id="brand" class="card">LUMIOS</div>
+  <div class="card">
+    <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
+    <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
   </div>
+
+  <button id="btnMode" class="btn">🌙 Nuit</button>
+  <button id="btnNext" class="btn">⏭️ Skip</button>
+  <button id="btnReplay" class="btn">🔄 Rejouer</button>
+  <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">🎁 Précommander un vrai Jeu Lumios pour Noël</a>
+</div>
 
 <script>
 /* ===== Polyfill rAF ===== */
@@ -116,328 +120,399 @@
   }
 })();
 
-/* ===== DOM refs ===== */
-var canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
-var hud=document.getElementById('hud');
-var elTimer=document.getElementById('hudTimer');
-var elPowerPct=document.getElementById('hudPowerPct');
-var elPowerBar=document.getElementById('hudPowerBar');
-var elCntG=document.getElementById('cntG'), elCntB=document.getElementById('cntB');
-var btnMode=document.getElementById('btnMode');
-var btnNext=document.getElementById('btnNext');
-var btnReplay=document.getElementById('btnReplay');
-var turnBanner=document.getElementById('turnBanner');
+/* ===== Canvas ===== */
+const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
+const hudClock=document.getElementById('clock');
+const powBar=document.getElementById('powBar');
+const powPct=document.getElementById('powPct');
+const badge=document.getElementById('badge');
+const elCntG=document.getElementById('cntG'), elCntB=document.getElementById('cntB');
 
-/* ===== Couleurs ===== */
-var COLOR_RED='#ff5a67', COLOR_GREEN='#38d67a', COLOR_BLUE='#4da6ff';
-
-/* ===== Paramètres ===== */
-var LUMIES_N=5, R_LUMIE=22, R_BALL=16;
-var LUMIE_SPACING=R_LUMIE*4;
-var RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
-var POWER_K=0.09, BASE_ZONE_RATIO=0.12;
-var ARROW_MAX = 100;     // <= point 2 : flèche max 100px
-var LAUNCH_MARGIN = R_BALL + 24;  // marge visible pour la balle de départ
-var MIN_SPEED=0.05;
-var IMPACT_SPEED_BALL=0.22;        // seuil d’impact luminator→lumie
-var IMPACT_SPEED_LUMIES=0.16;      // seuil d’impact lumie↔lumie
-var IMPACT_SPEED_WALL=0.18;        // seuil d’impact mur
-var LOCK_MS=4000;                  // cooldown 4s par lumie
-
-/* ===== État ===== */
-var lumies=[], ball=null, drag=null, tStart=Date.now();
-var mode="night";
-var currentPlayer=1, playerColors={1:null,2:null};
-var gainedThisTurn=0, lostThisTurn=0;
-var gameOver=false, winColor=null, confetti=[];
-
-/* ===== Helpers UI / score ===== */
-function countColors(){var g=0,b=0;for(var i=0;i<lumies.length;i++){if(lumies[i].color==='green')g++;else if(lumies[i].color==='blue')b++;}return {g:g,b:b};}
-function updateScore(){var c=countColors();elCntG.textContent=c.g;elCntB.textContent=c.b;}
-function setTurnBanner(){
-  var label="JOUEUR "+currentPlayer;
-  if(playerColors[1]){
-    var col=playerColors[currentPlayer];
-    turnBanner.style.borderColor='transparent';
-    turnBanner.style.background = (col==='green')?COLOR_GREEN:COLOR_BLUE;
-    turnBanner.style.color = '#000';
-    turnBanner.textContent = label+' - '+col.toUpperCase();
-  }else{
-    turnBanner.style.background='rgba(255,255,255,.08)';
-    turnBanner.style.color='#fff';
-    turnBanner.style.borderColor='rgba(255,80,80,.9)';
-    turnBanner.textContent=label;
-  }
-}
-
-/* ===== Responsive: canvas = viewport - HUD ===== */
-function resize(){
-  var hudH=hud.getBoundingClientRect().height;
-  var W=window.innerWidth, H=window.innerHeight-hudH;
-  if(H<320) H=320;
-  canvas.width=W; canvas.height=H;
+function sizeCanvas(){
+  // canvas prend toute la place disponible (géré en CSS),
+  // on prend sa vraie taille CSS
+  const r=canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.floor(r.width));
+  canvas.height= Math.max(1, Math.floor(r.height));
   layout();
 }
-window.addEventListener('resize',resize);
+window.addEventListener('resize', sizeCanvas);
 
-/* ===== Init / layout ===== */
+/* ===== Couleurs ===== */
+const COLOR_RED   ='#ff5a67';
+const COLOR_GREEN ='#38d67a';
+const COLOR_BLUE  ='#4da6ff';
+
+/* ===== Paramètres ===== */
+const LUMIES_N=5, R_LUMIE=22, R_BALL=16;
+const LUMIE_SPACING = R_LUMIE * 4;
+const RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
+const POWER_K=0.09, MAX_DRAG=320;
+const MAX_AIM_LEN = 160;           // longueur max de la flèche de visée (plus dur)
+const BASE_ZONE_RATIO=0.16;        // zone de lancement plus haute
+
+// Détections robustes
+const MOVE_EPS = 0.18;             // vitesse mini considérée comme "mouvement"
+const COLOR_COOLDOWN = 400;        // ms blocage changement couleur anti-clignotement
+
+/* ===== État ===== */
+let lumies=[], ball=null, drag=null, tStart=Date.now();
+let mode="night"; // "night" ou "day"
+let currentPlayer=1;                       // 1 ou 2
+let playerColors={1:null,2:null};          // défini lors de la 1ère rouge touchée
+let gainedThisTurn=0, lostThisTurn=0;
+let gameOver=false, winColor=null, confetti=[];
+
+/* ===== UI ===== */
+const btnMode=document.getElementById('btnMode');
+btnMode.onclick=function(){
+  if(mode==="night"){ mode="day"; btnMode.textContent="☀️ Jour"; btnMode.style.background=COLOR_BLUE; btnMode.style.color="#fff"; }
+  else { mode="night"; btnMode.textContent="🌙 Nuit"; btnMode.style.background=COLOR_GREEN; btnMode.style.color="#000"; }
+};
+document.getElementById('btnNext').onclick=function(){
+  if(ball){ ball.active=false; ball.vx=0; ball.vy=0; }
+  endOfTurn();
+};
+document.getElementById('btnReplay').onclick=function(){
+  resetGame();
+};
+
+function countColors(){let g=0,b=0;for(let i=0;i<lumies.length;i++){const c=lumies[i].color; if(c==='green')g++; else if(c==='blue')b++;}return {g,b};}
+function updateScore(){const c=countColors(); elCntG.textContent=c.g; elCntB.textContent=c.b;}
+
+/* ===== Init ===== */
+function resetGame(){
+  playerColors={1:null,2:null};
+  currentPlayer=1;
+  gainedThisTurn=0; lostThisTurn=0;
+  gameOver=false; winColor=null; confetti.length=0;
+  tStart=Date.now();
+  layout();
+}
+
 function layout(){
   lumies=[];
-  var midX=canvas.width*0.5, midY=canvas.height*0.5;
+  const midX=canvas.width*0.5;
+  const midY=canvas.height*0.5;
 
-  // rangée centrée (compaction auto mobile)
-  var isMobile=(canvas.width<=768)||(window.innerHeight>window.innerWidth);
-  var spacing=LUMIE_SPACING, startX=midX-spacing*(LUMIES_N-1)/2;
+  // Spacing responsive (mobile: on compacte pour rentrer)
+  let spacing=LUMIE_SPACING, startX=midX - spacing*(LUMIES_N-1)/2;
+  const isMobile=(canvas.width<=768) || (window.innerHeight>window.innerWidth);
   if(isMobile){
-    var marginX=Math.max(16, canvas.width*0.06);
-    var usable=canvas.width-2*(marginX+R_LUMIE);
-    var fit=(LUMIES_N>1)? usable/(LUMIES_N-1) : 0;
-    spacing=Math.min(LUMIE_SPACING, fit);
-    var rowW=spacing*(LUMIES_N-1);
-    startX=Math.max(marginX+R_LUMIE, midX-rowW/2);
-  }
-  for(var i=0;i<LUMIES_N;i++){
-    var x=startX+i*spacing;
-    lumies.push({x:x,y:midY,vx:0,vy:0,r:R_LUMIE,color:'red',lastHit:0});
+    const marginX=Math.max(16, canvas.width*0.06);
+    const usable = canvas.width - 2*(marginX + R_LUMIE);
+    const fitSpacing = (LUMIES_N>1)? (usable/(LUMIES_N-1)) : 0;
+    spacing = Math.min(LUMIE_SPACING, fitSpacing);
+    const rowW = spacing*(LUMIES_N-1);
+    startX = Math.max(marginX + R_LUMIE, midX - rowW/2);
   }
 
-  var launchY=canvas.height*0.10;
-  if (currentPlayer === 1) {
-    ball = { x: midX, y: canvas.height - LAUNCH_MARGIN, vx:0, vy:0, r:R_BALL, active:false, age:0 };
-  } else {
-    ball = { x: midX, y: LAUNCH_MARGIN, vx:0, vy:0, r:R_BALL, active:false, age:0 };
+  for(let i=0;i<LUMIES_N;i++){
+    const x=startX + i*spacing;
+    lumies.push({x, y:midY, vx:0, vy:0, r:R_LUMIE, color:'red', lastHit:0});
   }
+
+  const launchOffset = Math.max(56, canvas.height*0.14); // assez haut/bas pour être visible
+  if(currentPlayer===1){
+    ball={x:midX, y:canvas.height-launchOffset, vx:0, vy:0, r:R_BALL, active:false, age:0};
+  }else{
+    ball={x:midX, y:launchOffset, vx:0, vy:0, r:R_BALL, active:false, age:0};
+  }
+
   gainedThisTurn=0; lostThisTurn=0;
-  updateScore(); setTurnBanner();
+  updateScore();
+  updateBadge();
+}
+
+function updateBadge(){
+  if(!playerColors[1]){
+    badge.style.background = COLOR_BLUE;
+    badge.textContent = "JOUEUR "+currentPlayer;
+    return;
+  }
+  const meCol = playerColors[currentPlayer];
+  badge.style.background = (meCol==='green')?COLOR_GREEN:COLOR_BLUE;
+  badge.textContent = "JOUEUR "+currentPlayer+" - "+meCol.toUpperCase();
 }
 
 /* ===== Entrées ===== */
-function getPos(e){var r=canvas.getBoundingClientRect(),x,y;
+function getPos(e){const r=canvas.getBoundingClientRect(); let x,y;
   if(e.touches&&e.touches.length){x=e.touches[0].clientX-r.left;y=e.touches[0].clientY-r.top;}
-  else{x=e.clientX-r.left;y=e.clientY-r.top;} return {x:x,y:y};}
-function inBaseZone(y){var z=canvas.height*BASE_ZONE_RATIO;return currentPlayer===1?(y>canvas.height-z):(y<z);}
+  else{x=e.clientX-r.left;y=e.clientY-r.top;} return {x,y};}
 
-canvas.addEventListener('mousedown',startDrag);
-canvas.addEventListener('touchstart',startDrag,{passive:false});
-//function startDrag(e){if(gameOver)return;e.preventDefault();var p=getPos(e); if(!inBaseZone(p.y)) return; drag={sx:p.x,sy:p.y,x:p.x,y:p.y};}
-function startDrag(e){
-  if (gameOver) return;
-  var p = getPos(e);
-  if (!inBaseZone(p.y)) return;      // pas de preventDefault si on n'est pas en zone de tir -> on peut scroller
-  e.preventDefault();                // on commence un tir : bloque le scroll
-  canvas.style.touchAction = 'none'; // désactive le scroll pendant ce tir
-  drag = { sx:p.x, sy:p.y, x:p.x, y:p.y };
+function inBaseZone(y){
+  const zone=canvas.height*BASE_ZONE_RATIO;
+  return currentPlayer===1 ? (y>canvas.height-zone) : (y<zone);
 }
 
-canvas.addEventListener('mousemove',moveDrag);
+canvas.addEventListener('mousedown',startDrag,{passive:false});
+canvas.addEventListener('touchstart',startDrag,{passive:false});
+function startDrag(e){
+  if(gameOver) return;
+  e.preventDefault();
+  const p=getPos(e);
+  if(!inBaseZone(p.y)) return;
+  drag={sx:p.x,sy:p.y,x:p.x,y:p.y};
+}
+
+canvas.addEventListener('mousemove',moveDrag,{passive:false});
 canvas.addEventListener('touchmove',moveDrag,{passive:false});
-function moveDrag(e){if(!drag)return;var p=getPos(e);drag.x=p.x;drag.y=p.y;updatePowerUI(drag);}
+function moveDrag(e){
+  if(!drag) return;
+  const p=getPos(e); drag.x=p.x; drag.y=p.y; updatePowerUI(drag);
+}
 
-canvas.addEventListener('mouseup',endDrag);
-canvas.addEventListener('mouseleave',endDrag);
+canvas.addEventListener('mouseup',endDrag); canvas.addEventListener('mouseleave',endDrag);
 canvas.addEventListener('touchend',endDrag);
-
 function endDrag(e){
   if(!drag) return;
-  var vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.sqrt(vx*vx+vy*vy);
+  let vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.hypot(vx,vy);
   if(len>5){
-    var cap=Math.min(len, ARROW_MAX);
-    var ux=vx/len, uy=vy/len, speed=cap*POWER_K;
+    // clamp vitesse sur MAX_DRAG (puissance)
+    const p=Math.min(len,MAX_DRAG);
+    const ux=vx/len, uy=vy/len;
+    const speed=p*POWER_K;
     ball.x=drag.sx; ball.y=drag.sy; ball.vx=ux*speed; ball.vy=uy*speed; ball.active=true; ball.age=0;
   }
   drag=null; updatePowerUI(null);
-  canvas.style.touchAction = 'pan-y'; // re-permet le scroll
 }
 
 function updatePowerUI(d){
-  if(!d){elPowerPct.textContent='0%';elPowerBar.style.width='0%';elPowerBar.style.background='#4da6ff';return;}
-  var vx=d.x-d.sx,vy=d.y-d.sy,len=Math.sqrt(vx*vx+vy*vy),p=Math.min(len,ARROW_MAX);
-  var pct=Math.round((p/ARROW_MAX)*100);
-  elPowerPct.textContent=pct+'%';
-  elPowerBar.style.width=pct+'%';
-  elPowerBar.style.background=pct<40?'#4da6ff':(pct<75?'#38d67a':'#ffb74a');
+  if(!d){ powPct.textContent='0%'; powBar.style.width='0%'; powBar.style.background=COLOR_BLUE; return; }
+  let vx=d.x-d.sx, vy=d.y-d.sy, len=Math.hypot(vx,vy), p=Math.min(len,MAX_DRAG);
+  const pct=Math.round((p/MAX_DRAG)*100);
+  powPct.textContent=pct+'%'; powBar.style.width=pct+'%';
+  powBar.style.background = pct<40?COLOR_BLUE:(pct<75?COLOR_GREEN:'#ffb74a');
+}
+
+/* ===== Règle couleurs ===== */
+function onLumieHit(L){
+  const before=L.color;
+  if(before==='red'){
+    L.color = (Math.random()<0.5)?'green':'blue';
+    // première attribution des équipes
+    if(!playerColors[1] && !playerColors[2]){
+      playerColors[currentPlayer]=L.color;
+      playerColors[(currentPlayer===1)?2:1] = (L.color==='green')?'blue':'green';
+      updateBadge();
+    }
+  }else if(before==='green'){
+    L.color='blue';
+  }else if(before==='blue'){
+    L.color='green';
+  }
+  // scoring & victoire
+  updateScore();
+  checkWin();
+
+  // suivi des gains/pertes si équipes déjà fixées
+  if(playerColors[1]){
+    if(L.color===playerColors[currentPlayer] && before!==playerColors[currentPlayer]) gainedThisTurn++;
+    if(before===playerColors[currentPlayer] && L.color!==playerColors[currentPlayer]) lostThisTurn++;
+  }
+}
+
+// Anti-spam & “bouge → change”
+function tryToggleOnMove(L){
+  const now=performance.now();
+  if(!L.lastHit) L.lastHit=0;
+  if(now-L.lastHit < COLOR_COOLDOWN) return;
+  if(Math.hypot(L.vx,L.vy) < MOVE_EPS) return;
+  onLumieHit(L);
+  L.lastHit = now;
+}
+
+/* ===== Victoire ===== */
+function checkWin(){const c=countColors(); if(c.g===LUMIES_N) triggerWin('green'); else if(c.b===LUMIES_N) triggerWin('blue');}
+function triggerWin(c){
+  gameOver=true; winColor=c; if(ball){ball.active=false; ball.vx=ball.vy=0;}
+  spawnConfetti(220,c);
+}
+function spawnConfetti(n,c){
+  confetti.length=0;
+  const cx=canvas.width/2, cy=canvas.height/2;
+  const base=(c==='green')?COLOR_GREEN:COLOR_BLUE;
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, sp=3+Math.random()*5;
+    const clr=(Math.random()<.15)?'#ffffff':base;
+    confetti.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:120+Math.random()*60,clr, size:2+Math.random()*3, rot:Math.random()*Math.PI});
+  }
+}
+function stepConfetti(){
+  for(let i=confetti.length-1;i>=0;i--){
+    const p=confetti[i]; p.vy+=0.12; p.vx*=0.992; p.vy*=0.992; p.x+=p.vx; p.y+=p.vy; p.rot+=0.1; p.life--;
+    if(p.life<=0) confetti.splice(i,1);
+  }
 }
 
 /* ===== Physique ===== */
 function step(){
   stepConfetti();
 
-  if(ball&&ball.active){
-    ball.x+=ball.vx; ball.y+=ball.vy;
-    ball.vx*=FRICTION; ball.vy*=FRICTION; ball.age+=16;
-
-    // murs
+  // Balle jaune
+  if(ball && ball.active){
+    ball.x+=ball.vx; ball.y+=ball.vy; ball.vx*=FRICTION; ball.vy*=FRICTION; ball.age+=16;
     if(ball.x<ball.r){ball.x=ball.r;ball.vx=-ball.vx*RESTIT;}
     if(ball.x>canvas.width-ball.r){ball.x=canvas.width-ball.r;ball.vx=-ball.vx*RESTIT;}
     if(ball.y<ball.r){ball.y=ball.r;ball.vy=-ball.vy*RESTIT;}
     if(ball.y>canvas.height-ball.r){ball.y=canvas.height-ball.r;ball.vy=-ball.vy*RESTIT;}
 
-    // collisions
-    for(var i=0;i<lumies.length;i++){collideBallLumie(ball,lumies[i]);}
+    for(let i=0;i<lumies.length;i++) collideBallLumie(ball, lumies[i]);
 
-    if(Math.abs(ball.vx)<MIN_SPEED && Math.abs(ball.vy)<MIN_SPEED){ball.active=false; endOfTurn();}
+    if(Math.abs(ball.vx)<0.05 && Math.abs(ball.vy)<0.05){ ball.active=false; endOfTurn(); }
   }
 
-  // lumies
-  for(var i=0;i<lumies.length;i++){
-    var L=lumies[i]; L.x+=L.vx; L.y+=L.vy; L.vx*=ROLL_F; L.vy*=ROLL_F;
-    var hit=false, vn=0;
+  // Lumies : frottements + murs + toggle on move
+  for(let i=0;i<lumies.length;i++){
+    const L=lumies[i];
+    let hitWall=false;
+    L.x+=L.vx; L.y+=L.vy; L.vx*=ROLL_F; L.vy*=ROLL_F;
 
-    if(L.x<L.r){L.x=L.r;vn=Math.abs(L.vx);L.vx=-L.vx*RESTIT;hit=true;}
-    if(L.x>canvas.width-L.r){L.x=canvas.width-L.r;vn=Math.abs(L.vx);L.vx=-L.vx*RESTIT;hit=true;}
-    if(L.y<L.r){L.y=L.r;vn=Math.abs(L.vy);L.vy=-L.vy*RESTIT;hit=true;}
-    if(L.y>canvas.height-L.r){L.y=canvas.height-L.r;vn=Math.abs(L.vy);L.vy=-L.vy*RESTIT;hit=true;}
-
-    if(hit && vn>IMPACT_SPEED_WALL) onLumieHit(L);
+    if(L.x<L.r){L.x=L.r;L.vx=-L.vx*RESTIT;hitWall=true;}
+    if(L.x>canvas.width-L.r){L.x=canvas.width-L.r;L.vx=-L.vx*RESTIT;hitWall=true;}
+    if(L.y<L.r){L.y=L.r;L.vy=-L.vy*RESTIT;hitWall=true;}
+    if(L.y>canvas.height-L.r){L.y=canvas.height-L.r;L.vy=-L.vy*RESTIT;hitWall=true;}
+    if(hitWall) tryToggleOnMove(L);
   }
 
-  // collisions entre lumies
-  for(var a=0;a<lumies.length;a++){
-    for(var b=a+1;b<lumies.length;b++){
-      collideLumies(lumies[a],lumies[b]);
-    }
-  }
+  // Collisions entre lumies
+  for(let i=0;i<lumies.length;i++)
+    for(let j=i+1;j<lumies.length;j++)
+      collideLumies(lumies[i],lumies[j]);
 }
 
 function collideBallLumie(B,L){
-  var dx=L.x-B.x, dy=L.y-B.y, d=Math.sqrt(dx*dx+dy*dy), min=B.r+L.r;
-  if(d>0&&d<min){
-    var nx=dx/d, ny=dy/d, ov=min-d;
-    B.x-=nx*ov*0.5; B.y-=ny*ov*0.5;
-    L.x+=nx*ov*0.5; L.y+=ny*ov*0.5;
+  let dx=L.x-B.x, dy=L.y-B.y;
+  let d=Math.hypot(dx,dy);
+  const minD=B.r+L.r;
 
-    var rvx=B.vx-L.vx, rvy=B.vy-L.vy, vn=rvx*nx+rvy*ny; if(vn>0) return;
-    var j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
-    B.vx+=jx; B.vy+=jy; L.vx-=jx; L.vy-=jy;
+  if(d===0){ dx=1e-6; d=1e-6; }
+  if(d>=minD) return;
 
-    if(Math.abs(vn)>IMPACT_SPEED_BALL) onLumieHit(L);
-  }
+  const nx=dx/d, ny=dy/d;
+  const overlap=minD-d;
+
+  // séparation
+  B.x-=nx*overlap*0.5; B.y-=ny*overlap*0.5;
+  L.x+=nx*overlap*0.5; L.y+=ny*overlap*0.5;
+
+  // impulsion élastique (avec signe correct)
+  const rvx=B.vx-L.vx, rvy=B.vy-L.vy;
+  const vn = rvx*nx + rvy*ny;
+  if(vn>0) return;
+
+  const j=-(1+RESTIT)*vn/2;
+  const jx=j*nx, jy=j*ny;
+  B.vx -= jx; B.vy -= jy;
+  L.vx += jx; L.vy += jy;
+
+  tryToggleOnMove(L);
 }
 
 function collideLumies(A,B){
-  var dx=B.x-A.x, dy=B.y-A.y, d=Math.sqrt(dx*dx+dy*dy), min=A.r+B.r;
-  if(d>0&&d<min){
-    var nx=dx/d, ny=dy/d, ov=min-d;
-    A.x-=nx*ov*0.5; A.y-=ny*ov*0.5;
-    B.x+=nx*ov*0.5; B.y+=ny*ov*0.5;
+  let dx=B.x-A.x, dy=B.y-A.y;
+  let d=Math.hypot(dx,dy);
+  const minD=A.r+B.r;
 
-    var rvx=A.vx-B.vx, rvy=A.vy-B.vy, vn=rvx*nx+rvy*ny;
-    var j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
-    A.vx+=jx; A.vy+=jy; B.vx-=jx; B.vy-=jy;
+  if(d===0){ dx=1e-6; d=1e-6; }
+  if(d>=minD) return;
 
-    if(Math.abs(vn)>IMPACT_SPEED_LUMIES){ onLumieHit(A); onLumieHit(B); }
-  }
-}
+  const nx=dx/d, ny=dy/d;
+  const overlap=minD-d;
 
-/* ===== Couleur + règles d’équipe ===== */
-function onLumieHit(L){
-  var now=performance.now();
-  if(now - (L.lastHit||0) < LOCK_MS) return; // lock 4s
-  L.lastHit=now;
+  A.x-=nx*overlap*0.5; A.y-=ny*overlap*0.5;
+  B.x+=nx*overlap*0.5; B.y+=ny*overlap*0.5;
 
-  var before=L.color;
+  const rvx=A.vx-B.vx, rvy=A.vy-B.vy;
+  const vn=rvx*nx + rvy*ny;
+  if(vn>0) return;
 
-  if(before==='red'){
-    L.color=(Math.random()<0.5)?'green':'blue';
-    if(!playerColors[1] && !playerColors[2]){
-      playerColors[currentPlayer]=L.color;
-      playerColors[(currentPlayer===1)?2:1]=(L.color==='green'?'blue':'green');
-      setTurnBanner();
-    }
-  }else if(before==='green'){ L.color='blue';
-  }else if(before==='blue'){  L.color='green'; }
+  const j=-(1+RESTIT)*vn/2;
+  const jx=j*nx, jy=j*ny;
+  A.vx -= jx; A.vy -= jy;
+  B.vx += jx; B.vy += jy;
 
-  // suivi gains/pertes + score + victoire
-  if(playerColors[1]){
-    if(L.color===playerColors[currentPlayer] && before!==playerColors[currentPlayer]) gainedThisTurn++;
-    if(before===playerColors[currentPlayer] && L.color!==playerColors[currentPlayer]) lostThisTurn++;
-  }
-  updateScore(); checkWin();
-}
-
-/* ===== Win & confettis ===== */
-function checkWin(){var c=countColors(); if(c.g===LUMIES_N) triggerWin('green'); else if(c.b===LUMIES_N) triggerWin('blue');}
-function triggerWin(c){gameOver=true;winColor=c;ball.active=false;ball.vx=ball.vy=0;spawnConfetti(240,c);}
-function spawnConfetti(n,c){
-  confetti=[]; var cx=canvas.width/2, cy=canvas.height/2, base=(c==='green')?'#38d67a':'#4da6ff';
-  for(var i=0;i<n;i++){
-    var a=Math.random()*Math.PI*2, sp=3+Math.random()*5;
-    var clr=(Math.random()<.15)?'#ffffff':base;
-    confetti.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:120+Math.random()*60,clr:clr,size:2+Math.random()*3,rot:Math.random()*Math.PI});
-  }
-}
-function stepConfetti(){
-  for(var i=confetti.length-1;i>=0;i--){
-    var p=confetti[i]; p.vy+=0.12; p.vx*=0.992; p.vy*=0.992; p.x+=p.vx; p.y+=p.vy; p.rot+=0.1; p.life--;
-    if(p.life<=0) confetti.splice(i,1);
-  }
+  tryToggleOnMove(A);
+  tryToggleOnMove(B);
 }
 
 /* ===== Tours ===== */
 function endOfTurn(){
-  if(!playerColors[1]) return; // tant que les équipes ne sont pas fixées
-  if(!(gainedThisTurn>0 && lostThisTurn===0)){ currentPlayer=(currentPlayer===1)?2:1; }
-  gainedThisTurn=0; lostThisTurn=0;
-  var midX = canvas.width * 0.5;
-  if (currentPlayer === 1) {
-    ball.x = midX; ball.y = canvas.height - LAUNCH_MARGIN;
-  } else {
-    ball.x = midX; ball.y = LAUNCH_MARGIN;
+  if(!playerColors[1]){ // tant que couleurs non fixées, alternance simple
+    currentPlayer = (currentPlayer===1)?2:1;
+    repositionBall(); updateBadge(); return;
   }
-  ball.vx = 0; ball.vy = 0; ball.active = false;
-  setTurnBanner();
+  if(gainedThisTurn>0 && lostThisTurn===0){
+    // rejoue (on garde currentPlayer)
+  }else{
+    currentPlayer = (currentPlayer===1)?2:1;
+  }
+  gainedThisTurn=0; lostThisTurn=0;
+  repositionBall(); updateBadge();
+}
+function repositionBall(){
+  const midX=canvas.width*0.5;
+  const launchOffset=Math.max(56, canvas.height*0.14);
+  if(currentPlayer===1){ ball.x=midX; ball.y=canvas.height-launchOffset; }
+  else { ball.x=midX; ball.y=launchOffset; }
+  ball.vx=0; ball.vy=0; ball.active=false;
 }
 
 /* ===== Rendu ===== */
 function drawDashed(x1,y1,x2,y2,seg,space){
-  var dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy); if(len===0) return;
-  var nx=dx/len, ny=dy/len, d=0, on=true, cx=x1, cy=y1;
-  ctx.beginPath();
-  while(d<len){var step=(on?seg:space); if(d+step>len) step=len-d; var sx=nx*step, sy=ny*step;
-    if(on){ctx.moveTo(cx,cy);ctx.lineTo(cx+sx,cy+sy);} cx+=sx; cy+=sy; d+=step; on=!on;}
-  ctx.stroke();
+  let dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if(len===0) return;
+  // clamp visuel de la flèche
+  const maxLen = MAX_AIM_LEN;
+  if(len>maxLen){ const sc=maxLen/len; dx*=sc; dy*=sc; len=maxLen; x2=x1+dx; y2=y1+dy; }
+  const nx=dx/len, ny=dy/len; let d=0, on=true, cx=x1, cy=y1;
+  while(d<len){ let step=(on?seg:space); if(d+step>len) step=len-d; const sx=nx*step, sy=ny*step;
+    if(on){ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+sx,cy+sy); ctx.stroke(); }
+    cx+=sx; cy+=sy; d+=step; on=!on;
+  }
 }
+
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // fond
+  // Fond
   if(mode==="night"){
-    var g=ctx.createRadialGradient(canvas.width*.5,canvas.height*.5,10,canvas.width*.5,canvas.height*.5,Math.max(canvas.width,canvas.height)*.8);
+    const g=ctx.createRadialGradient(canvas.width*.5,canvas.height*.5,10,canvas.width*.5,canvas.height*.5,Math.max(canvas.width,canvas.height)*.8);
     g.addColorStop(0,'#16224a'); g.addColorStop(1,'#0b1020'); ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
   } else {
-    var g2=ctx.createLinearGradient(0,0,0,canvas.height);
+    const g2=ctx.createLinearGradient(0,0,0,canvas.height);
     g2.addColorStop(0,'#6abf69'); g2.addColorStop(1,'#2e7d32'); ctx.fillStyle=g2; ctx.fillRect(0,0,canvas.width,canvas.height);
   }
 
-  // bases + médiane
-  var rBase=Math.min(canvas.width,canvas.height)*0.10;
-  ctx.beginPath(); ctx.arc(canvas.width*.5,0,rBase,0,Math.PI,true); ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fill();
-  ctx.beginPath(); ctx.arc(canvas.width*.5,canvas.height,rBase,Math.PI,0,true); ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fill();
+  // bases (semi-cercle haut et bas)
+  const rBase=Math.min(canvas.width,canvas.height)*0.10;
+  ctx.beginPath(); ctx.arc(canvas.width*.5,56, rBase, Math.PI, 0, false); ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(canvas.width*.5,canvas.height, rBase, 0, Math.PI, false); ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fill();
+
+  // ligne médiane
   ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(canvas.width*.08, canvas.height*.5); ctx.lineTo(canvas.width*.92, canvas.height*.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(canvas.width*.06, canvas.height*.5); ctx.lineTo(canvas.width*.94, canvas.height*.5); ctx.stroke();
 
   // lumies
-  for(var i=0;i<lumies.length;i++){
-    var L=lumies[i];
+  for(let i=0;i<lumies.length;i++){
+    const L=lumies[i];
     ctx.beginPath(); ctx.arc(L.x,L.y,L.r*1.5,0,Math.PI*2); ctx.fillStyle='rgba(255,90,103,0.20)'; ctx.fill();
-    var fill=(L.color==='red')?COLOR_RED:(L.color==='green'?COLOR_GREEN:COLOR_BLUE);
+    const fill=(L.color==='red')?COLOR_RED:(L.color==='green'?COLOR_GREEN:COLOR_BLUE);
     ctx.beginPath(); ctx.arc(L.x,L.y,L.r,0,Math.PI*2); ctx.fillStyle=fill; ctx.fill();
     ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.stroke();
   }
 
   // luminator
   if(ball){
-    ctx.beginPath(); ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2);
-    ctx.fillStyle='#ffd24a'; ctx.fill();
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2); ctx.fillStyle='#ffd24a'; ctx.fill();
     ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.stroke();
   }
 
-  // flèche visée
+  // flèche de visée
   if(drag){
     ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=2;
-    drawDashed(drag.sx, drag.sy, drag.x, drag.y, 6, 6);
-    var vx=drag.x-drag.sx, vy=drag.y-drag.sy, ang=Math.atan2(vy,vx);
-    var ax=drag.x, ay=drag.y, l=12;
+    drawDashed(drag.sx,drag.sy,drag.x,drag.y,6,6);
+    const vx=drag.x-drag.sx, vy=drag.y-drag.sy, ang=Math.atan2(vy,vx);
+    const ax=drag.x, ay=drag.y, l=12;
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(ax - l*Math.cos(ang - Math.PI/6), ay - l*Math.sin(ang - Math.PI/6));
@@ -446,36 +521,34 @@ function draw(){
     ctx.stroke();
   }
 
-  // confettis + overlay de victoire
-  for(var cfi=0;cfi<confetti.length;cfi++){
-    var p=confetti[cfi]; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+  // confettis
+  for(let i=0;i<confetti.length;i++){
+    const p=confetti[i]; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
     ctx.fillStyle=p.clr; ctx.fillRect(-p.size*0.5,-p.size*0.5,p.size,p.size); ctx.restore();
   }
+
+  // overlay victoire
   if(gameOver){
-    var cx=canvas.width/2, cy=canvas.height/2, R=Math.min(canvas.width,canvas.height)*0.30;
-    ctx.fillStyle='#ffffff';
-    ctx.beginPath();
-    var spikes=14; for(var k=0;k<spikes;k++){var ang=(k/spikes)*Math.PI*2, r=(k%2?R*0.55:R), x=cx+Math.cos(ang)*r, y=cy+Math.sin(ang)*r; (k?ctx.lineTo(x,y):ctx.moveTo(x,y));}
+    const cx=canvas.width/2, cy=canvas.height/2, R=Math.min(canvas.width,canvas.height)*0.30;
+    ctx.fillStyle='#ffffff'; ctx.beginPath();
+    const spikes=14; for(let k=0;k<spikes;k++){const a=(k/spikes)*Math.PI*2, r=(k%2?R*0.55:R), x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r; (k?ctx.lineTo(x,y):ctx.moveTo(x,y));}
     ctx.closePath(); ctx.fill();
     ctx.font=Math.floor(R*0.45)+'px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillStyle=(winColor==='green')?COLOR_GREEN:COLOR_BLUE;
-    ctx.fillText('LUMIOS',cx,cy);
+    ctx.fillStyle=(winColor==='green')?COLOR_GREEN:COLOR_BLUE; ctx.fillText('LUMIOS',cx,cy);
   }
 }
 
 /* ===== Timer + boucle ===== */
-setInterval(function(){var s=Math.floor((Date.now()-tStart)/1000),m=Math.floor(s/60);s%=60;
-  elTimer.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;},1000);
-
-btnMode.onclick=function(){
-  if(mode==="night"){ mode="day"; btnMode.textContent="☀️ Jour"; }
-  else { mode="night"; btnMode.textContent="🌙 Nuit"; }
-};
-btnNext.onclick=function(){ if(ball && ball.active){ball.active=false;ball.vx=ball.vy=0;} endOfTurn(); };
-btnReplay.onclick=function(){ gameOver=false; winColor=null; playerColors={1:null,2:null}; currentPlayer=1; layout(); };
+setInterval(function(){
+  const sTot=Math.floor((Date.now()-tStart)/1000);
+  const m=Math.floor(sTot/60), s=sTot%60;
+  hudClock.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+},1000);
 
 function loop(){ step(); draw(); requestAnimationFrame(loop); }
-resize(); loop();
+
+/* Start */
+sizeCanvas(); resetGame(); loop();
 </script>
 </body>
 </html>

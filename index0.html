@@ -1,0 +1,530 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Lumios – Étape 2.1 (toggle jour/nuit)</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{margin:0;padding:0;background:#0b1020;color:#fff;font-family:Arial,Helvetica,sans-serif}
+    #canvas{display:block;width:100vw;height:100vh}
+
+    /* Panneau gauche */
+    #panel{position:fixed;left:12px;top:50%;transform:translateY(-50%);width:140px;z-index:5}
+    .card{background:#131a3a;border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);margin-bottom:8px}
+    #brand{background:#e65a6a;color:#fff;font-weight:bold;font-size:20px;letter-spacing:2px;text-align:center}
+    .row{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+    .dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
+    .g{background:#38d67a}.b{background:#4da6ff}
+    #timer{font-weight:bold;text-align:center}
+    #powerBarWrap{height:10px;background:#0d1330;border-radius:999px;overflow:hidden}
+    #powerBar{height:100%;width:0%}
+    #btnBuy{display:block;width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;text-align:center;text-decoration:none;font-weight:bold;background:#ff4d6d;color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.25);cursor:pointer;box-sizing:border-box;}
+    #btnBuy:hover{ filter:brightness(1.08)}
+    #btnReplay{cursor:pointer;background:#4da6ff;color:#fff;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%;margin-top:6px;box-shadow:0 6px 16px rgba(0,0,0,.25);box-sizing:border-box}
+    #btnReplay:hover{ filter:brightness(1.08); }
+    #btnNext {cursor:pointer;background:#ffb74a;color:#000;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%;margin-top:6px}
+    #btnMode{cursor:pointer;background:#38d67a;color:#000;font-weight:bold;text-align:center;border:none;border-radius:8px;padding:8px 10px;width:100%}
+  </style>
+</head>
+<body>
+  <!-- Panneau latéral -->
+  <div id="panel">
+    <div id="brand" class="card">LUMIOS</div>
+    <div class="card">
+      <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
+      <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
+    </div>
+    <div id="timer" class="card">00:00</div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px">Puissance</span><b id="powerPct">0%</b>
+      </div>
+      <div id="powerBarWrap"><div id="powerBar"></div></div>
+    </div>
+    <button id="btnMode">🌙 Nuit</button>
+    <button id="btnNext">⏭️ Skip</button>
+    <button id="btnReplay">🔄 Rejouer</button>
+    <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">🎁 Précommander un vrai Jeu Lumios pour Noël</a>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+<script>
+/* ===== Polyfill rAF ===== */
+(function(){
+  var v=['ms','moz','webkit','o'],i;
+  for(i=0;i<v.length && !window.requestAnimationFrame;i++){
+    window.requestAnimationFrame=window[v[i]+'RequestAnimationFrame'];
+    window.cancelAnimationFrame=window[v[i]+'CancelAnimationFrame']||window[v[i]+'CancelRequestAnimationFrame'];
+  }
+  if(!window.requestAnimationFrame){
+    window.requestAnimationFrame=function(cb){return setTimeout(function(){cb(Date.now());},16);};
+    window.cancelAnimationFrame=function(id){clearTimeout(id);};
+  }
+})();
+
+/* ===== UI ===== */
+var elTimer=document.getElementById('timer');
+var elPowerPct=document.getElementById('powerPct');
+var elPowerBar=document.getElementById('powerBar');
+var btnMode=document.getElementById('btnMode');
+var elCntG=document.getElementById('cntG'), elCntB=document.getElementById('cntB');
+btnMode.onclick=function(){
+  if(mode==="night"){ mode="day"; btnMode.textContent="☀️ Jour"; btnMode.style.background="#4da6ff"; btnMode.style.color="#fff"; }
+  else { mode="night"; btnMode.textContent="🌙 Nuit"; btnMode.style.background="#38d67a"; btnMode.style.color="#000"; }
+};
+function countColors(){var g=0,b=0;for(var i=0;i<lumies.length;i++){if(lumies[i].color==='green')g++;else if(lumies[i].color==='blue')b++;}return {g:g,b:b};}
+
+function updateScore(){
+  if(!elCntG || !elCntB) return;   // au cas où
+  var c=countColors();
+  elCntG.textContent=c.g;
+  elCntB.textContent=c.b;
+}
+
+/* ===== Canvas ===== */
+var canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
+function resize(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; layout(); }
+window.addEventListener('resize',resize); resize();
+
+var btnNext=document.getElementById('btnNext');
+btnNext.onclick=function(){
+  if(ball.active){
+    ball.active=false; // stoppe le luminator
+    ball.vx=0; ball.vy=0;
+  }
+  endOfTurn();
+};
+
+var btnReplay=document.getElementById('btnReplay');
+btnReplay.onclick=function(){
+  gameOver=false;
+  playerColors={1:null,2:null};
+  currentPlayer=1;
+  gainedThisTurn=0;
+  lostThisTurn=0;
+  winColor=null;
+  confetti=[];
+  layout(); // remet toutes les boules rouges et reset le score
+};
+
+
+/* ===== Couleurs ===== */
+var COLOR_RED='#ff5a67', COLOR_GREEN='#38d67a', COLOR_BLUE='#4da6ff';
+
+/* ===== Paramètres ===== */
+var LUMIES_N=5, R_LUMIE=22, R_BALL=16;
+var LUMIE_SPACING = R_LUMIE * 4;
+var RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
+var POWER_K=0.09, MAX_DRAG=320, BASE_ZONE_RATIO=0.12;
+var COLOR_LOCK_MS = 4000; // délai blocage couleur après un changement
+var AIM_MAX_LEN = 120; // longueur max de la flèche en pixels
+
+// Sensibilité des hits
+var MIN_HIT_VN   = 0.03;   // vitesse normale minimale (avant 0.2)
+var MIN_HIT_PEN  = 0.8;    // profondeur de pénétration minimale (en pixels)
+var HIT_COOLDOWN = 180;    // anti double-hit en ms
+
+
+/* ===== État ===== */
+var lumies=[], ball=null, drag=null, tStart=Date.now();
+var mode="night"; // "night" ou "day"
+var currentPlayer = 1;            // 1 ou 2
+var playerColors = {1:null,2:null}; // couleur assignée après 1ère boule rouge
+var gainedThisTurn = 0;           // nb de lumies gagnées ce tour
+var lostThisTurn = 0;             // nb de lumies perdues ce tour
+var gameOver=false, winColor=null, confetti=[];
+
+
+/* ===== Init ===== */
+function layout(){
+  lumies = [];
+
+  const midX = canvas.width * 0.5;
+  const midY = canvas.height * 0.5;
+
+  // --- spacing par défaut (desktop) ---
+  let spacing = LUMIE_SPACING;                 // = R_LUMIE * 4
+  let startX  = midX - spacing * (LUMIES_N - 1) / 2;
+
+  // --- si écran "mobile" (étroit ou portrait), on compacte la rangée ---
+  const isMobile = (canvas.width <= 768) || (window.innerHeight > window.innerWidth);
+  if (isMobile) {
+    const marginX = Math.max(16, canvas.width * 0.06);      // marge contre les murs
+    const usable  = canvas.width - 2 * (marginX + R_LUMIE); // place dispo entre marges (en enlevant 1 rayon de chaque côté)
+    const fitSpacing = (LUMIES_N > 1) ? usable / (LUMIES_N - 1) : 0;
+
+    spacing = Math.min(LUMIE_SPACING, fitSpacing);          // réduit si nécessaire
+
+    const rowWidth = spacing * (LUMIES_N - 1);
+    startX = Math.max(marginX + R_LUMIE, midX - rowWidth / 2);
+  }
+
+  // placer les 5 lumies, toutes rouges au départ
+  for (let i = 0; i < LUMIES_N; i++) {
+    const x = startX + i * spacing;
+    lumies.push({ x, y: midY, vx:0, vy:0, r:R_LUMIE, color:'red', lastHit:0, lockUntil:0 });
+  }
+
+  // position du Luminator selon le joueur courant
+  const launchY = canvas.height * 0.10;
+  if (currentPlayer === 1) {
+    ball = { x: midX, y: canvas.height - launchY, vx: 0, vy: 0, r: R_BALL, active: false, age: 0 };
+  } else {
+    ball = { x: midX, y: launchY, vx: 0, vy: 0, r: R_BALL, active: false, age: 0 };
+  }
+
+  // reset tour + score visuel
+  gainedThisTurn = 0;
+  lostThisTurn   = 0;
+  updateScore();
+}
+
+
+
+/* ===== Entrées ===== */
+function getPos(e){var r=canvas.getBoundingClientRect(),x,y;
+  if(e.touches&&e.touches.length){x=e.touches[0].clientX-r.left;y=e.touches[0].clientY-r.top;}
+  else{x=e.clientX-r.left;y=e.clientY-r.top;} return {x:x,y:y};}
+function inBaseZone(y){
+  var zone=canvas.height*BASE_ZONE_RATIO;
+  if(currentPlayer===1) return (y>canvas.height-zone); // joueur 1 bas
+  else return (y<zone); // joueur 2 haut
+}
+
+canvas.addEventListener('mousedown',startDrag); canvas.addEventListener('touchstart',startDrag);
+function startDrag(e){if(gameOver) return;e.preventDefault();var p=getPos(e); if(!inBaseZone(p.y)) return; drag={sx:p.x,sy:p.y,x:p.x,y:p.y};}
+canvas.addEventListener('mousemove',moveDrag); canvas.addEventListener('touchmove',moveDrag);
+function moveDrag(e){if(!drag) return; var p=getPos(e); drag.x=p.x; drag.y=p.y; updatePowerUI(drag);}
+canvas.addEventListener('mouseup',endDrag); canvas.addEventListener('mouseleave',endDrag); canvas.addEventListener('touchend',endDrag);
+function endDrag(e){
+  if(!drag) return;
+  var vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.sqrt(vx*vx+vy*vy);
+  if(len>5){ var p=Math.min(len,MAX_DRAG); var ux=vx/len, uy=vy/len; var speed=p*POWER_K;
+    ball.x=drag.sx; ball.y=drag.sy; ball.vx=ux*speed; ball.vy=uy*speed; ball.active=true; ball.age=0; }
+  drag=null; updatePowerUI(null);
+}
+function updatePowerUI(d){
+  if(!d){ elPowerPct.textContent='0%'; elPowerBar.style.width='0%'; elPowerBar.style.background='#4da6ff'; return; }
+  var vx=d.x-d.sx, vy=d.y-d.sy, len=Math.sqrt(vx*vx+vy*vy), p=Math.min(len,MAX_DRAG);
+  var pct=Math.round((p/MAX_DRAG)*100);
+  elPowerPct.textContent=pct+'%'; elPowerBar.style.width=pct+'%';
+  elPowerBar.style.background=pct<40?'#4da6ff':(pct<75?'#38d67a':'#ffb74a');
+}
+
+
+function checkWin(){var c=countColors();if(c.g===LUMIES_N){triggerWin('green');}else if(c.b===LUMIES_N){triggerWin('blue');}}
+
+function onLumieHit(L){
+  var now = performance.now ? performance.now() : Date.now();
+
+  // si la boule est encore "bloquée", on ignore
+  if((L.lockUntil || 0) > now) return;
+
+  var before = L.color;
+  if(before === 'red'){
+    L.color = (Math.random() < 0.5) ? 'green' : 'blue';
+    // première attribution : définit la couleur du joueur courant
+    if(!playerColors[1] && !playerColors[2]){
+      playerColors[currentPlayer] = L.color;
+      playerColors[(currentPlayer===1)?2:1] = (L.color==='green'?'blue':'green');
+    }
+  } else if(before === 'green'){
+    L.color = 'blue';
+  } else if(before === 'blue'){
+    L.color = 'green';
+  }
+
+  // on bloque la couleur pour 4s
+  L.lockUntil = now + COLOR_LOCK_MS;
+
+  updateScore();
+  checkWin();
+
+  // suivi des gains/pertes uniquement si équipes définies
+  if(playerColors[1]){
+    if(L.color===playerColors[currentPlayer] && before!==playerColors[currentPlayer]) gainedThisTurn++;
+    if(before===playerColors[currentPlayer] && L.color!==playerColors[currentPlayer]) lostThisTurn++;
+  }
+}
+
+function tryHit(L){
+  var now = performance.now ? performance.now() : Date.now();
+  if((L.lastHit||0) + HIT_COOLDOWN > now) return; // debounce
+  L.lastHit = now;
+  onLumieHit(L);
+}
+
+function triggerWin(c){
+  gameOver=true; winColor=c; ball.active=false; ball.vx=ball.vy=0;
+  spawnConfetti(220,c);
+}
+
+function spawnConfetti(n,c){
+  confetti=[]; var cx=canvas.width/2, cy=canvas.height/2, base=(c==='green')?'#38d67a':'#4da6ff';
+  for(var i=0;i<n;i++){
+    var a=Math.random()*Math.PI*2, sp=3+Math.random()*5;
+    var clr=(Math.random()<.15)?'#ffffff':base;
+    confetti.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:120+Math.random()*60,clr:clr,size:2+Math.random()*3,rot:Math.random()*Math.PI});
+  }
+}
+
+function stepConfetti(){
+  for(var i=confetti.length-1;i>=0;i--){
+    var p=confetti[i]; p.vy+=0.12; p.vx*=0.992; p.vy*=0.992; p.x+=p.vx; p.y+=p.vy; p.rot+=0.1; p.life--;
+    if(p.life<=0) confetti.splice(i,1);
+  }
+}
+
+function endOfTurn(){
+  if(!playerColors[1]) return; // tant que équipes pas fixées
+
+  if(gainedThisTurn>0 && lostThisTurn===0){
+    // rejoue -> on garde currentPlayer
+  } else {
+    currentPlayer=(currentPlayer===1)?2:1;
+  }
+
+  // reset compteurs
+  gainedThisTurn=0; lostThisTurn=0;
+
+  // replacer la balle (luminator) en base du joueur courant
+  var midX=canvas.width*0.5;
+  var launchY=canvas.height*0.10;
+  if(currentPlayer===1){
+    ball.x=midX; ball.y=canvas.height-launchY;
+  } else {
+    ball.x=midX; ball.y=launchY;
+  }
+  ball.vx=0; ball.vy=0; ball.active=false;
+}
+
+/* ===== Physique ===== */
+function step(){
+  stepConfetti();
+  var i,j;
+
+  // --- Luminator ---
+  if (ball && ball.active){
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    ball.vx *= FRICTION;
+    ball.vy *= FRICTION;
+    ball.age += 16;
+
+    if (ball.x < ball.r){ ball.x = ball.r; ball.vx = -ball.vx * RESTIT; }
+    if (ball.x > canvas.width - ball.r){ ball.x = canvas.width - ball.r; ball.vx = -ball.vx * RESTIT; }
+    if (ball.y < ball.r){ ball.y = ball.r; ball.vy = -ball.vy * RESTIT; }
+    if (ball.y > canvas.height - ball.r){ ball.y = canvas.height - ball.r; ball.vy = -ball.vy * RESTIT; }
+
+    for (i=0; i<lumies.length; i++){ collideBallLumie(ball, lumies[i]); }
+
+    if (Math.abs(ball.vx) < 0.05 && Math.abs(ball.vy) < 0.05){
+      ball.active = false;
+      endOfTurn();
+    }
+  }
+
+  // --- Lumies ---
+  for (i=0; i<lumies.length; i++){
+    var L = lumies[i], hit = false;
+
+    L.x += L.vx;
+    L.y += L.vy;
+    L.vx *= ROLL_F;
+    L.vy *= ROLL_F;
+
+    if (L.x < L.r){ L.x = L.r; L.vx = -L.vx * RESTIT; hit = true; }
+    if (L.x > canvas.width - L.r){ L.x = canvas.width - L.r; L.vx = -L.vx * RESTIT; hit = true; }
+    if (L.y < L.r){ L.y = L.r; L.vy = -L.vy * RESTIT; hit = true; }
+    if (L.y > canvas.height - L.r){ L.y = canvas.height - L.r; L.vy = -L.vy * RESTIT; hit = true; }
+
+    if (hit) tryHit(L); // <-- remplace onLumieHit(L) par tryHit(L)
+  }
+
+  // --- Collisions entre lumies ---
+  for (i=0; i<lumies.length; i++){
+    for (j=i+1; j<lumies.length; j++){
+      collideLumies(lumies[i], lumies[j]);
+    }
+  }
+}
+
+function collideBallLumie(B,L){
+  var dx=L.x-B.x, dy=L.y-B.y;
+  var d=Math.sqrt(dx*dx+dy*dy), min=B.r+L.r;
+  if(d>0 && d<min){
+    var nx=dx/d, ny=dy/d;
+    var ov=min-d; // profondeur de pénétration
+
+    // séparation
+    B.x-=nx*ov*0.5; B.y-=ny*ov*0.5;
+    L.x+=nx*ov*0.5; L.y+=ny*ov*0.5;
+
+    // réponse élastique
+    var rvx=B.vx-L.vx, rvy=B.vy-L.vy;
+    var vn=rvx*nx + rvy*ny;
+    if(vn>0) vn=0; // sécurité
+
+    var j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
+    B.vx+=jx; B.vy+=jy;
+    L.vx-=jx; L.vy-=jy;
+
+    // Déclenchement hit : vitesse OU pénétration
+    if (Math.abs(vn) > MIN_HIT_VN || ov > MIN_HIT_PEN){
+      tryHit(L);
+    }
+  }
+}
+
+function collideLumies(A,B){
+  var dx=B.x-A.x, dy=B.y-A.y;
+  var d=Math.sqrt(dx*dx+dy*dy), min=A.r+B.r;
+  if(d>0 && d<min){
+    var nx=dx/d, ny=dy/d;
+    var ov=min-d;
+
+    // séparation
+    A.x-=nx*ov*0.5; A.y-=ny*ov*0.5;
+    B.x+=nx*ov*0.5; B.y+=ny*ov*0.5;
+
+    // réponse
+    var rvx=A.vx-B.vx, rvy=A.vy-B.vy;
+    var vn=rvx*nx + rvy*ny;
+
+    var j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
+    A.vx+=jx; A.vy+=jy;
+    B.vx-=jx; B.vy-=jy;
+
+    // Déclenchement des deux côtés
+    if (Math.abs(vn) > MIN_HIT_VN || ov > MIN_HIT_PEN){
+      tryHit(A);
+      tryHit(B);
+    }
+  }
+}
+
+/* ===== Rendu ===== */
+function drawDashed(x1,y1,x2,y2,seg,space){
+  var dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy); if(len===0) return;
+  var nx=dx/len, ny=dy/len, d=0, on=true, cx=x1, cy=y1;
+  while(d<len){var step=(on?seg:space);if(d+step>len) step=len-d;var sx=nx*step, sy=ny*step;
+    if(on){ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+sx,cy+sy);ctx.stroke();}
+    cx+=sx;cy+=sy;d+=step;on=!on;}
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Fond jour/nuit
+  if(mode==="night"){
+    var g=ctx.createRadialGradient(canvas.width*.5,canvas.height*.5,10,canvas.width*.5,canvas.height*.5,Math.max(canvas.width,canvas.height)*.8);
+    g.addColorStop(0,'#16224a'); g.addColorStop(1,'#0b1020'); ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+  } else {
+    var g2=ctx.createLinearGradient(0,0,0,canvas.height);
+    g2.addColorStop(0,'#6abf69'); g2.addColorStop(1,'#2e7d32'); ctx.fillStyle=g2; ctx.fillRect(0,0,canvas.width,canvas.height);
+  }
+
+  // bases
+  var rBase=Math.min(canvas.width,canvas.height)*0.10;
+  ctx.beginPath(); ctx.arc(canvas.width*.5,0,rBase,0,Math.PI,true); ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(canvas.width*.5,canvas.height,rBase,Math.PI,0,true); ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fill();
+
+  // ligne médiane
+  ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(canvas.width*.08, canvas.height*.5); ctx.lineTo(canvas.width*.92, canvas.height*.5); ctx.stroke();
+
+  // lumies
+  for(var i=0;i<lumies.length;i++){
+    var L=lumies[i];
+    ctx.beginPath(); ctx.arc(L.x,L.y,L.r*1.5,0,Math.PI*2); ctx.fillStyle='rgba(255,90,103,0.20)'; ctx.fill();
+    var fill=(L.color==='red')?COLOR_RED:(L.color==='green'?COLOR_GREEN:COLOR_BLUE);
+    ctx.beginPath(); ctx.arc(L.x,L.y,L.r,0,Math.PI*2); ctx.fillStyle=fill; ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.stroke();
+  }
+
+  // luminator
+  if(ball){
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2);
+    ctx.fillStyle='#ffd24a'; ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.stroke();
+  }
+
+  // flèche visée
+  if(drag){
+    ctx.strokeStyle='rgba(255,255,255,0.55)';
+    ctx.lineWidth=2;
+
+    var vx = drag.x - drag.sx;
+    var vy = drag.y - drag.sy;
+    var len = Math.sqrt(vx*vx + vy*vy);
+
+    // clamp longueur
+    var maxLen = Math.min(len, AIM_MAX_LEN);
+    var ux = vx / (len || 1);
+    var uy = vy / (len || 1);
+    var ex = drag.sx + ux * maxLen;
+    var ey = drag.sy + uy * maxLen;
+
+    // ligne pointillée limitée
+    drawDashed(drag.sx, drag.sy, ex, ey, 6, 6);
+
+    // petit triangle de pointe
+    var ang = Math.atan2(vy, vx);
+    var l = 12;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - l*Math.cos(ang - Math.PI/6), ey - l*Math.sin(ang - Math.PI/6));
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - l*Math.cos(ang + Math.PI/6), ey - l*Math.sin(ang + Math.PI/6));
+    ctx.stroke();
+  }
+
+
+  // confettis
+  for(var cfi=0;cfi<confetti.length;cfi++){
+    var p=confetti[cfi]; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+    ctx.fillStyle=p.clr; ctx.fillRect(-p.size*0.5,-p.size*0.5,p.size,p.size); ctx.restore();
+  }
+
+  // overlay de victoire "LUMIOS"
+  if(gameOver){
+    var cx=canvas.width/2, cy=canvas.height/2, R=Math.min(canvas.width,canvas.height)*0.30;
+    ctx.fillStyle='#ffffff';
+    ctx.beginPath();
+    var spikes=14; for(var k=0;k<spikes;k++){var ang=(k/spikes)*Math.PI*2, r=(k%2?R*0.55:R), x=cx+Math.cos(ang)*r, y=cy+Math.sin(ang)*r; (k?ctx.lineTo(x,y):ctx.moveTo(x,y));}
+    ctx.closePath(); ctx.fill();
+    ctx.font=Math.floor(R*0.45)+'px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=(winColor==='green')?COLOR_GREEN:COLOR_BLUE;
+    ctx.fillText('LUMIOS',cx,cy);
+  }
+
+  // encart joueur courant
+  ctx.font="20px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  var boxW=240, boxH=40, bx=canvas.width-boxW-20, by=20;
+  var label="JOUEUR "+currentPlayer;
+  if(playerColors[1]){
+    label+=" - "+playerColors[currentPlayer].toUpperCase();
+    ctx.fillStyle=(playerColors[currentPlayer]==='green')?COLOR_GREEN:COLOR_BLUE;
+    ctx.fillRect(bx,by,boxW,boxH);
+    ctx.fillStyle="#000";
+    ctx.fillText(label,bx+boxW/2,by+boxH/2);
+  } else {
+    ctx.strokeStyle="red"; ctx.lineWidth=3;
+    ctx.strokeRect(bx,by,boxW,boxH);
+    ctx.fillStyle="#fff";
+    ctx.fillText(label,bx+boxW/2,by+boxH/2);
+  }
+}
+
+
+/* ===== Timer + boucle ===== */
+setInterval(function(){var s=Math.floor((Date.now()-tStart)/1000),m=Math.floor(s/60);s%=60;
+  elTimer.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;},1000);
+
+function loop(){ step(); draw(); requestAnimationFrame(loop); }
+layout(); loop();
+</script>
+</body>
+</html>
