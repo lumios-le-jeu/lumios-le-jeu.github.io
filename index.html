@@ -68,7 +68,17 @@
     z-index:5;
   }
   .card{background:var(--panel);border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);margin-bottom:8px}
-  #brand{background:var(--brand);color:#fff;font-weight:bold;font-size:20px;letter-spacing:2px;text-align:center;border-radius:10px}
+  #brand {
+  display:block;
+  background:var(--brand);
+  color:#fff;
+  font-weight:bold;
+  font-size:20px;
+  letter-spacing:2px;
+  text-align:center;
+  border-radius:10px;
+  text-decoration:none;   /* pas de soulignement */
+  }
   .row{display:flex;justify-content:space-between;align-items:center;font-size:14px}
   .dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
   .g{background:var(--green)} .b{background:var(--blue)}
@@ -117,7 +127,8 @@
 
 <!-- Panneau (desktop à gauche, mobile en dessous après scroll) -->
 <div id="panel">
-  <div id="brand" class="card">LUMIOS</div>
+  <a id="brand" class="card" href="https://www.lumios-le-jeu.fr/pages/regles-du-jeu-lumios" target="_blank" rel="noopener">Règles</a>
+
   <div class="card">
     <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
     <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
@@ -170,6 +181,7 @@ window.addEventListener('resize', sizeCanvas);
 const COLOR_RED   ='#ff5a67';
 const COLOR_GREEN ='#38d67a';
 const COLOR_BLUE  ='#4da6ff';
+const COLOR_GOLD  = '#ffd24a';   // ← AJOUT
 
 /* ===== Paramètres ===== */
 const LUMIES_N=5, R_LUMIE=22, R_BALL=16;
@@ -180,7 +192,7 @@ const MAX_AIM_LEN = 120;           // longueur max de la flèche de visée
 const BASE_ZONE_RATIO=0.16;        // zone de lancement
 
 // Détections robustes
-const MOVE_EPS = 0;
+const MOVE_EPS = 0.012;
 const COLOR_COOLDOWN = 4000;        // ms
 
 /* ===== État ===== */
@@ -190,6 +202,8 @@ let currentPlayer=1;
 let playerColors={1:null,2:null};
 let gainedThisTurn=0, lostThisTurn=0;
 let gameOver=false, winColor=null, confetti=[];
+let showHint = true;
+
 
 /* ⬇️ Nouveau : mode de jeu */
 let gameMode = "pvp"; // "pvp" | "easy" | "hard"
@@ -311,10 +325,14 @@ function endDrag(e){
     const p=Math.min(len,MAX_DRAG);
     const ux=vx/len, uy=vy/len;
     const speed=p*POWER_K;
-    ball.x=drag.sx; ball.y=drag.sy; ball.vx=ux*speed; ball.vy=uy*speed; ball.active=true; ball.age=0;
+    ball.x=drag.sx; ball.y=drag.sy;
+    ball.vx=ux*speed; ball.vy=uy*speed;
+    ball.active=true; ball.age=0;
+    showHint = false;   // 🔹 plus de message après 1er tir
   }
   drag=null; updatePowerUI(null);
 }
+
 
 function updatePowerUI(d){
   if(!d){ powPct.textContent='0%'; powBar.style.width='0%'; powBar.style.background=COLOR_BLUE; return; }
@@ -611,10 +629,25 @@ function draw(){
   }
 
   // luminator
-  if(ball){
-    ctx.beginPath(); ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2); ctx.fillStyle='#ffd24a'; ctx.fill();
-    ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.stroke();
+if(ball){
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2);
+  ctx.fillStyle=COLOR_GOLD;
+  ctx.fill();
+  ctx.lineWidth=3;
+  ctx.strokeStyle='rgba(255,255,255,0.75)';
+  ctx.stroke();
+
+  // 🔹 message de départ
+  if(showHint){
+    ctx.font="18px Arial";
+    ctx.textAlign="center";
+    ctx.textBaseline="bottom";
+    ctx.fillStyle="#fff";
+    ctx.fillText("Lancez la balle en visant les boules", ball.x, ball.y - R_BALL - 20);
   }
+  }
+
 
   // flèche de visée
   if(drag){
