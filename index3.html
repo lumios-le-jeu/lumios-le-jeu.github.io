@@ -15,7 +15,6 @@
     --red:#ff5a67;
     --gold:#ffd24a;
     --text:#fff;
-    --hudH:56px;           /* <-- hauteur du HUD utilisée plus bas */
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;height:100%;}
   /* Empêche le double-tap zoom sur mobile */
@@ -23,24 +22,18 @@
 
   /* HUD en haut (toujours visible) */
   #hud{
-    position:fixed; inset:0 0 auto 0; height:var(--hudH);
-    padding:8px calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
-    display:flex; align-items:center; gap:12px;
-    background:rgba(5,10,25,.65); backdrop-filter:blur(8px);
-    z-index:50;
+  position:fixed; inset:0 0 auto 0; height:var(--hudH);
+  padding:8px calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
+  display:flex; align-items:center; gap:12px;
+  background:rgba(5,10,25,.65); backdrop-filter:blur(8px);
+  z-index:50;
   }
 
   /* timer + libellé puissance + jauge + % alignés à gauche */
   #clock{ font-weight:700; letter-spacing:.5px; }
-  #powerRow{ display:flex; align-items:center; gap:0px; margin-left:12px; } /* (non utilisé mais conservé) */
-  #powerTrack{ width:100px; height:10px; background:#121836; border-radius:999px; overflow:hidden } /* (non utilisé mais conservé) */
-  #powerFill{ height:100%; width:0%; background:#4da6ff; } /* (non utilisé mais conservé) */
-
-  /* === Styles correspondant à tes IDs HTML réels === */
-  #labelPow{ margin-left:8px; opacity:.85; }
-  #powWrap{ width:140px; height:10px; background:#121836; border-radius:999px; overflow:hidden; margin:0 8px; }
-  #powBar{ height:100%; width:0%; background:#4da6ff; }
-  #powPct{ font-weight:700; }
+  #powerRow{ display:flex; align-items:center; gap:0px; margin-left:12px; }
+  #powerTrack{ width:100px; height:10px; background:#121836; border-radius:999px; overflow:hidden }
+  #powerFill{ height:100%; width:0%; background:#4da6ff; }
 
   /* Badge du joueur, à droite, contenu toujours dans l’écran */
   #badge{
@@ -60,7 +53,6 @@
   #canvas{
     position:absolute; inset:56px 0 0 0;   /* sous le HUD */
     display:block; width:100%; height:calc(100% - 56px);
-    touch-action: pan-y;                   /* autorise le scroll vertical */
   }
 
   /* Panneau d’actions */
@@ -265,9 +257,9 @@ canvas.addEventListener('mousedown',startDrag,{passive:false});
 canvas.addEventListener('touchstart',startDrag,{passive:false});
 function startDrag(e){
   if(gameOver) return;
+  e.preventDefault();
   const p=getPos(e);
-  if(!inBaseZone(p.y)) return;   // ne pas bloquer le scroll si hors zone de tir
-  e.preventDefault();            // on démarre un tir : bloque le scroll
+  if(!inBaseZone(p.y)) return;
   drag={sx:p.x,sy:p.y,x:p.x,y:p.y};
 }
 
