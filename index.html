@@ -6,7 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <style>
   html,body{margin:0;padding:0;background:#0b1020;color:#fff;font-family:Arial,Helvetica,sans-serif}
-
+  /* autorise le scroll vertical sur le canvas (safari iOS) */
+  #canvas { touch-action: pan-y; }
   /* ===== HUD en haut (timer + puissance + joueur courant) ===== */
   #hud{
     position:sticky; top:0; z-index:20;
@@ -54,6 +55,16 @@
     #controls{
       position:fixed; left:12px; top:50%; transform:translateY(-50%);
       width:160px; margin:0; padding:0; z-index:5;
+    }
+  }
+
+  /* Mobile : plus petite */
+  @media (max-width: 768px){
+    #turnBanner{
+      min-width:auto;
+      font-size:14px;
+      padding:6px 10px;
+      border-radius:8px;
     }
   }
 </style>
@@ -125,7 +136,8 @@ var LUMIES_N=5, R_LUMIE=22, R_BALL=16;
 var LUMIE_SPACING=R_LUMIE*4;
 var RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
 var POWER_K=0.09, BASE_ZONE_RATIO=0.12;
-var ARROW_MAX=260;                 // longueur max flèche (plus dur)
+var ARROW_MAX = 100;     // <= point 2 : flèche max 100px
+var LAUNCH_MARGIN = R_BALL + 24;  // marge visible pour la balle de départ
 var MIN_SPEED=0.05;
 var IMPACT_SPEED_BALL=0.22;        // seuil d’impact luminator→lumie
 var IMPACT_SPEED_LUMIES=0.16;      // seuil d’impact lumie↔lumie
@@ -190,9 +202,11 @@ function layout(){
   }
 
   var launchY=canvas.height*0.10;
-  if(currentPlayer===1) ball={x:midX,y:canvas.height-launchY,vx:0,vy:0,r:R_BALL,active:false,age:0};
-  else                  ball={x:midX,y:launchY,vx:0,vy:0,r:R_BALL,active:false,age:0};
-
+  if (currentPlayer === 1) {
+    ball = { x: midX, y: canvas.height - LAUNCH_MARGIN, vx:0, vy:0, r:R_BALL, active:false, age:0 };
+  } else {
+    ball = { x: midX, y: LAUNCH_MARGIN, vx:0, vy:0, r:R_BALL, active:false, age:0 };
+  }
   gainedThisTurn=0; lostThisTurn=0;
   updateScore(); setTurnBanner();
 }
@@ -205,7 +219,15 @@ function inBaseZone(y){var z=canvas.height*BASE_ZONE_RATIO;return currentPlayer=
 
 canvas.addEventListener('mousedown',startDrag);
 canvas.addEventListener('touchstart',startDrag,{passive:false});
-function startDrag(e){if(gameOver)return;e.preventDefault();var p=getPos(e); if(!inBaseZone(p.y)) return; drag={sx:p.x,sy:p.y,x:p.x,y:p.y};}
+//function startDrag(e){if(gameOver)return;e.preventDefault();var p=getPos(e); if(!inBaseZone(p.y)) return; drag={sx:p.x,sy:p.y,x:p.x,y:p.y};}
+function startDrag(e){
+  if (gameOver) return;
+  var p = getPos(e);
+  if (!inBaseZone(p.y)) return;      // pas de preventDefault si on n'est pas en zone de tir -> on peut scroller
+  e.preventDefault();                // on commence un tir : bloque le scroll
+  canvas.style.touchAction = 'none'; // désactive le scroll pendant ce tir
+  drag = { sx:p.x, sy:p.y, x:p.x, y:p.y };
+}
 
 canvas.addEventListener('mousemove',moveDrag);
 canvas.addEventListener('touchmove',moveDrag,{passive:false});
@@ -214,16 +236,19 @@ function moveDrag(e){if(!drag)return;var p=getPos(e);drag.x=p.x;drag.y=p.y;updat
 canvas.addEventListener('mouseup',endDrag);
 canvas.addEventListener('mouseleave',endDrag);
 canvas.addEventListener('touchend',endDrag);
+
 function endDrag(e){
-  if(!drag)return;
+  if(!drag) return;
   var vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.sqrt(vx*vx+vy*vy);
   if(len>5){
-    var cap=Math.min(len,ARROW_MAX);
+    var cap=Math.min(len, ARROW_MAX);
     var ux=vx/len, uy=vy/len, speed=cap*POWER_K;
     ball.x=drag.sx; ball.y=drag.sy; ball.vx=ux*speed; ball.vy=uy*speed; ball.active=true; ball.age=0;
   }
   drag=null; updatePowerUI(null);
+  canvas.style.touchAction = 'pan-y'; // re-permet le scroll
 }
+
 function updatePowerUI(d){
   if(!d){elPowerPct.textContent='0%';elPowerBar.style.width='0%';elPowerBar.style.background='#4da6ff';return;}
   var vx=d.x-d.sx,vy=d.y-d.sy,len=Math.sqrt(vx*vx+vy*vy),p=Math.min(len,ARROW_MAX);
@@ -353,10 +378,13 @@ function endOfTurn(){
   if(!playerColors[1]) return; // tant que les équipes ne sont pas fixées
   if(!(gainedThisTurn>0 && lostThisTurn===0)){ currentPlayer=(currentPlayer===1)?2:1; }
   gainedThisTurn=0; lostThisTurn=0;
-
-  var midX=canvas.width*0.5, launchY=canvas.height*0.10;
-  if(currentPlayer===1){ball.x=midX;ball.y=canvas.height-launchY;} else {ball.x=midX;ball.y=launchY;}
-  ball.vx=0;ball.vy=0;ball.active=false;
+  var midX = canvas.width * 0.5;
+  if (currentPlayer === 1) {
+    ball.x = midX; ball.y = canvas.height - LAUNCH_MARGIN;
+  } else {
+    ball.x = midX; ball.y = LAUNCH_MARGIN;
+  }
+  ball.vx = 0; ball.vy = 0; ball.active = false;
   setTurnBanner();
 }
 
