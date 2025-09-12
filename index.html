@@ -2,113 +2,124 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Lumios – web proto</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Lumios – mobile HUD + scroll</title>
+
 <style>
-  :root{
-    --bg:#0b1020;
-    --panel:#131a3a;
-    --brand:#e65a6a;
-    --green:#38d67a;
-    --blue:#4da6ff;
-    --red:#ff5a67;
-    --gold:#ffd24a;
-    --text:#fff;
-  }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;height:100%;}
-  /* Empêche le double-tap zoom sur mobile */
-  * { touch-action: manipulation; }
+  :root{ --hudH:56px; }
 
-  /* HUD en haut (toujours visible) */
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:#0b1020; color:#fff; font-family:Arial,Helvetica,sans-serif;
+  }
+
+  /* ===== HUD fixé en haut (timer / puissance / badge joueur) ===== */
   #hud{
-    position:fixed; z-index:6; left:0; top:0; right:0;
-    height:56px; background:rgba(8,12,28,.95);
-    display:flex; align-items:center; gap:14px; padding:0 14px;
-    box-shadow:0 6px 16px rgba(0,0,0,.35);
+    position:fixed; inset:0 0 auto 0; height:var(--hudH);
+    padding:8px calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
+    display:flex; align-items:center; gap:12px;
+    background:rgba(5,10,25,.65); backdrop-filter:blur(8px);
+    z-index:50;
   }
-  
-  #clock{font-weight:700; font-size:18px; min-width:64px; text-align:left;}
-  #labelPow{opacity:.9; font-size:14px}
-  #powWrap{flex:0 0 120px; height:10px; background:#0d1330; border-radius:999px; overflow:hidden}
-  #powBar{height:100%; width:0%}
-  #powPct{min-width:40px; font-weight:700; text-align:right}
+  #clock{ font-weight:700; letter-spacing:.5px; }
+  #powerRow{ display:flex; align-items:center; gap:10px; margin-left:12px; }
+  #powerTrack{ width:140px; height:10px; background:#121836; border-radius:999px; overflow:hidden }
+  #powerFill{ height:100%; width:0%; background:#4da6ff; }
+  #powerPct{ font-weight:700; }
+
   #badge{
-    margin-left:auto; font-weight:700; font-size:16px;
-    background:var(--blue); color:#000; padding:8px 14px;
-    border-radius:10px; box-shadow:0 6px 16px rgba(0,0,0,.25);
+    margin-left:auto;
+    max-width:45vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-weight:800; font-size:16px;
+    padding:8px 12px; border-radius:10px;
+    color:#001a33; background:#6ab7ff;
+    border:2px solid rgba(255,255,255,.15);
   }
 
-  /* Canvas occupe tout l'écran sous le HUD */
-  #wrap{
-    position:relative; width:100vw; height:100vh;
+  @media (max-width:768px){
+    #badge{ font-size:15px; padding:6px 10px; max-width:52vw; }
+    #powerTrack{ width:110px; }
   }
+  @media (max-width:380px){
+    #badge{ font-size:14px; padding:6px 8px; max-width:58vw; }
+    #powerTrack{ width:92px; }
+  }
+
+  /* ===== Zone de jeu ===== */
+  #wrap{ min-height:100vh; padding-top:var(--hudH); }
   #canvas{
-    position:absolute; inset:56px 0 0 0;   /* sous le HUD */
-    display:block; width:100%; height:calc(100% - 56px);
+    display:block; width:100vw; height:calc(100vh - var(--hudH));
+    touch-action: pan-y;           /* iOS: autorise scroll vertical par défaut */
+    background:#0b1020;
   }
 
-  /* Panneau d’actions */
+  /* ===== Panneau d’actions (sous le canvas) ===== */
   #panel{
-    width:140px;
-    position:fixed; left:12px; top:50%; transform:translateY(-50%);
-    z-index:5;
+    position:static; transform:none; width:100%; max-width:420px;
+    margin:18px auto; padding:0 12px;
   }
-  .card{background:var(--panel);border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);margin-bottom:8px}
-  #brand{background:var(--brand);color:#fff;font-weight:bold;font-size:20px;letter-spacing:2px;text-align:center;border-radius:10px}
-  .row{display:flex;justify-content:space-between;align-items:center;font-size:14px}
-  .dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
-  .g{background:var(--green)} .b{background:var(--blue)}
-  .btn{display:block;width:100%;margin-top:6px;padding:10px 12px;border-radius:8px;text-align:center;font-weight:bold;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25);border:none}
-  #btnMode{background:var(--green);color:#000}
-  #btnNext{background:#ffb74a;color:#000}
-  #btnReplay{background:var(--blue);color:#fff}
-  #btnBuy{display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;text-align:center;font-weight:700;background:#ff4d6d;color:#fff;text-decoration:none;box-shadow:0 6px 16px rgba(0,0,0,.25)}
-  #btnBuy:hover{filter:brightness(1.08)}
+  .card{
+    background:#131a3a; border-radius:10px; padding:10px;
+    box-shadow:0 6px 16px rgba(0,0,0,.25); margin-bottom:8px;
+  }
+  #brand{ background:#e65a6a; color:#fff; font-weight:bold; font-size:20px;
+          letter-spacing:2px; text-align:center; }
+  .row{ display:flex; justify-content:space-between; align-items:center; font-size:14px }
+  .dot{ width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:6px }
+  .g{ background:#38d67a } .b{ background:#4da6ff }
 
-  /* Bandeau latéral masqué sur mobile : panel placé en dessous (scroll) */
-  @media (max-width: 768px){
-    #panel{
-      position:static; transform:none; width:100%; max-width:420px;
-      margin:18px auto; padding:0 12px;
-    }
-    #wrap{height:auto; min-height:100vh;}
-    #canvas{position:relative; inset:auto; width:100%; height:calc(100vh - 56px);}
+  #btnMode, #btnNext, #btnReplay, #btnBuy{
+    display:block; width:100%;
+    margin-top:6px; padding:10px 12px;
+    border-radius:8px; text-align:center; font-weight:bold; cursor:pointer;
+    box-shadow:0 6px 16px rgba(0,0,0,.25); border:none;
   }
+  #btnMode{ background:#38d67a; color:#000; }
+  #btnNext{ background:#ffb74a; color:#000; }
+  #btnReplay{ background:#4da6ff; color:#fff; }
+  #btnBuy{ background:#ff4d6d; color:#fff; text-decoration:none; }
+
+  /* Couleurs jeu */
+  .hidden{ display:none; }
 </style>
 </head>
+
 <body>
-
-<!-- HUD -->
-<div id="hud">
-  <div id="clock">00:00</div>
-  <div id="labelPow">Puissance</div>
-  <div id="powWrap"><div id="powBar"></div></div>
-  <div id="powPct">0%</div>
-  <div id="badge">JOUEUR 1</div>
-</div>
-
-<!-- Zone de jeu -->
-<div id="wrap">
-  <canvas id="canvas"></canvas>
-</div>
-
-<!-- Panneau (desktop à gauche, mobile en dessous après scroll) -->
-<div id="panel">
-  <div id="brand" class="card">LUMIOS</div>
-  <div class="card">
-    <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
-    <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
+  <!-- HUD -->
+  <div id="hud">
+    <div id="clock">00:00</div>
+    <div id="powerRow">
+      <span>Puissance</span>
+      <div id="powerTrack"><div id="powerFill"></div></div>
+      <b id="powerPct">0%</b>
+    </div>
+    <div id="badge"><span id="badgeText">JOUEUR 1</span></div>
   </div>
 
-  <button id="btnMode" class="btn">🌙 Nuit</button>
-  <button id="btnNext" class="btn">⏭️ Skip</button>
-  <button id="btnReplay" class="btn">🔄 Rejouer</button>
-  <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">🎁 Précommander un vrai Jeu Lumios pour Noël</a>
-</div>
+  <!-- Terrain -->
+  <div id="wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- Panneau sous le terrain (visible en scroll) -->
+  <div id="panel">
+    <div id="brand" class="card">LUMIOS</div>
+
+    <div class="card">
+      <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
+      <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
+    </div>
+
+    <button id="btnMode">🌙 Nuit</button>
+    <button id="btnNext">⏭️ Skip</button>
+    <button id="btnReplay">🔄 Rejouer</button>
+    <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">
+      🎁 Précommander un vrai Jeu Lumios pour Noël
+    </a>
+  </div>
 
 <script>
-/* ===== Polyfill rAF ===== */
+/* ========= rAF polyfill ========= */
 (function(){
   var v=['ms','moz','webkit','o'],i;
   for(i=0;i<v.length && !window.requestAnimationFrame;i++){
@@ -121,222 +132,172 @@
   }
 })();
 
-/* ===== Canvas ===== */
+/* ========= Canvas ========= */
 const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
-const hudClock=document.getElementById('clock');
-const powBar=document.getElementById('powBar');
-const powPct=document.getElementById('powPct');
-const badge=document.getElementById('badge');
+function resize(){ canvas.width=window.innerWidth; canvas.height=Math.max(200, window.innerHeight - document.getElementById('hud').offsetHeight); layout(); }
+window.addEventListener('resize',resize);
+
+/* ========= DOM refs ========= */
+const elClock=document.getElementById('clock');
+const elPowerPct=document.getElementById('powerPct');
+const elPowerFill=document.getElementById('powerFill');
 const elCntG=document.getElementById('cntG'), elCntB=document.getElementById('cntB');
+const btnMode=document.getElementById('btnMode');
+const btnNext=document.getElementById('btnNext');
+const btnReplay=document.getElementById('btnReplay');
+const elBadge=document.getElementById('badge'), elBadgeText=document.getElementById('badgeText');
 
-function sizeCanvas(){
-  // canvas prend toute la place disponible (géré en CSS),
-  // on prend sa vraie taille CSS
-  const r=canvas.getBoundingClientRect();
-  canvas.width = Math.max(1, Math.floor(r.width));
-  canvas.height= Math.max(1, Math.floor(r.height));
-  layout();
-}
-window.addEventListener('resize', sizeCanvas);
-
-/* ===== Couleurs ===== */
-const COLOR_RED   ='#ff5a67';
-const COLOR_GREEN ='#38d67a';
-const COLOR_BLUE  ='#4da6ff';
-
-/* ===== Paramètres ===== */
+/* ========= Constantes & état ========= */
+const COLOR_RED='#ff5a67', COLOR_GREEN='#38d67a', COLOR_BLUE='#4da6ff';
 const LUMIES_N=5, R_LUMIE=22, R_BALL=16;
-const LUMIE_SPACING = R_LUMIE * 4;
+const LUMIE_SPACING=R_LUMIE*4;
 const RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
-const POWER_K=0.09, MAX_DRAG=320;
-const MAX_AIM_LEN = 120;           // longueur max de la flèche de visée (plus dur)
-const BASE_ZONE_RATIO=0.16;        // zone de lancement plus haute
+const POWER_K=0.09, MAX_DRAG=320, BASE_ZONE_RATIO=0.12;
+const ARROW_MAX=120;                 // longueur max de la flèche (px)
+const LOCK_MS=400;                   // verrou (ms) post-changement couleur
 
-// Détections robustes
-const MOVE_EPS = 0;             // vitesse mini considérée comme "mouvement"
-const COLOR_COOLDOWN = 400;        // ms blocage changement couleur anti-clignotement
-
-/* ===== État ===== */
+let mode='night';
 let lumies=[], ball=null, drag=null, tStart=Date.now();
-let mode="night"; // "night" ou "day"
-let currentPlayer=1;                       // 1 ou 2
-let playerColors={1:null,2:null};          // défini lors de la 1ère rouge touchée
+let currentPlayer=1;
+let playerColors={1:null,2:null};
 let gainedThisTurn=0, lostThisTurn=0;
 let gameOver=false, winColor=null, confetti=[];
 
-/* ===== UI ===== */
-const btnMode=document.getElementById('btnMode');
-btnMode.onclick=function(){
-  if(mode==="night"){ mode="day"; btnMode.textContent="☀️ Jour"; btnMode.style.background=COLOR_BLUE; btnMode.style.color="#fff"; }
-  else { mode="night"; btnMode.textContent="🌙 Nuit"; btnMode.style.background=COLOR_GREEN; btnMode.style.color="#000"; }
-};
-document.getElementById('btnNext').onclick=function(){
-  if(ball){ ball.active=false; ball.vx=0; ball.vy=0; }
-  endOfTurn();
-};
-document.getElementById('btnReplay').onclick=function(){
-  resetGame();
-};
-
-function countColors(){let g=0,b=0;for(let i=0;i<lumies.length;i++){const c=lumies[i].color; if(c==='green')g++; else if(c==='blue')b++;}return {g,b};}
+/* ========= Helpers ========= */
+function countColors(){let g=0,b=0; for(const L of lumies){if(L.color==='green')g++; else if(L.color==='blue')b++;} return {g,b};}
 function updateScore(){const c=countColors(); elCntG.textContent=c.g; elCntB.textContent=c.b;}
+function now(){return performance.now();}
 
-/* ===== Init ===== */
-function resetGame(){
-  playerColors={1:null,2:null};
-  currentPlayer=1;
-  gainedThisTurn=0; lostThisTurn=0;
-  gameOver=false; winColor=null; confetti.length=0;
-  tStart=Date.now();
-  layout();
+function renderBadge(){
+  if(playerColors[1]){
+    const col=playerColors[currentPlayer];
+    elBadgeText.textContent=`JOUEUR ${currentPlayer} - ${col.toUpperCase()}`;
+    elBadge.style.background=(col==='green')?COLOR_GREEN:COLOR_BLUE;
+    elBadge.style.color =(col==='green')?'#08351f':'#001a33';
+  }else{
+    elBadgeText.textContent=`JOUEUR ${currentPlayer}`;
+    elBadge.style.background='#6ab7ff'; elBadge.style.color='#001a33';
+  }
 }
 
+/* ========= Init ========= */
 function layout(){
   lumies=[];
-  const midX=canvas.width*0.5;
-  const midY=canvas.height*0.5;
+  const midX=canvas.width*0.5, midY=canvas.height*0.5;
 
-  // Spacing responsive (mobile: on compacte pour rentrer)
-  let spacing=LUMIE_SPACING, startX=midX - spacing*(LUMIES_N-1)/2;
-  const isMobile=(canvas.width<=768) || (window.innerHeight>window.innerWidth);
-  if(isMobile){
-    const marginX=Math.max(16, canvas.width*0.06);
-    const usable = canvas.width - 2*(marginX + R_LUMIE);
-    const fitSpacing = (LUMIES_N>1)? (usable/(LUMIES_N-1)) : 0;
-    spacing = Math.min(LUMIE_SPACING, fitSpacing);
-    const rowW = spacing*(LUMIES_N-1);
-    startX = Math.max(marginX + R_LUMIE, midX - rowW/2);
-  }
+  // ligne centrée, spacing ajusté si étroit
+  let spacing=LUMIE_SPACING;
+  const marginX=Math.max(16, canvas.width*0.06);
+  const usable=canvas.width-2*(marginX+R_LUMIE);
+  if(LUMIES_N>1) spacing=Math.min(LUMIE_SPACING, usable/(LUMIES_N-1));
+  const startX=midX - spacing*(LUMIES_N-1)/2;
 
   for(let i=0;i<LUMIES_N;i++){
     const x=startX + i*spacing;
-    lumies.push({x, y:midY, vx:0, vy:0, r:R_LUMIE, color:'red', lastHit:0});
+    lumies.push({x, y:midY, vx:0, vy:0, r:R_LUMIE, color:'red', lockedUntil:0});
   }
 
-  const launchOffset = Math.max(56, canvas.height*0.14); // assez haut/bas pour être visible
-  if(currentPlayer===1){
-    ball={x:midX, y:canvas.height-launchOffset, vx:0, vy:0, r:R_BALL, active:false, age:0};
-  }else{
-    ball={x:midX, y:launchOffset, vx:0, vy:0, r:R_BALL, active:false, age:0};
-  }
+  const launchY=canvas.height*0.10;
+  ball={ x:midX, y:(currentPlayer===1?canvas.height-launchY:launchY),
+         vx:0, vy:0, r:R_BALL, active:false, age:0 };
 
   gainedThisTurn=0; lostThisTurn=0;
-  updateScore();
-  updateBadge();
+  updateScore(); renderBadge();
 }
 
-function updateBadge(){
-  if(!playerColors[1]){
-    badge.style.background = COLOR_BLUE;
-    badge.textContent = "JOUEUR "+currentPlayer;
-    return;
-  }
-  const meCol = playerColors[currentPlayer];
-  badge.style.background = (meCol==='green')?COLOR_GREEN:COLOR_BLUE;
-  badge.textContent = "JOUEUR "+currentPlayer+" - "+meCol.toUpperCase();
-}
-
-/* ===== Entrées ===== */
+/* ========= Entrées ========= */
 function getPos(e){const r=canvas.getBoundingClientRect(); let x,y;
-  if(e.touches&&e.touches.length){x=e.touches[0].clientX-r.left;y=e.touches[0].clientY-r.top;}
-  else{x=e.clientX-r.left;y=e.clientY-r.top;} return {x,y};}
-
+  if(e.touches&&e.touches.length){x=e.touches[0].clientX-r.left; y=e.touches[0].clientY-r.top;}
+  else {x=e.clientX-r.left; y=e.clientY-r.top;}
+  return {x,y};
+}
 function inBaseZone(y){
   const zone=canvas.height*BASE_ZONE_RATIO;
-  return currentPlayer===1 ? (y>canvas.height-zone) : (y<zone);
+  return (currentPlayer===1)? (y>canvas.height-zone) : (y<zone);
 }
 
-canvas.addEventListener('mousedown',startDrag,{passive:false});
+canvas.addEventListener('mousedown',startDrag);
 canvas.addEventListener('touchstart',startDrag,{passive:false});
 function startDrag(e){
   if(gameOver) return;
-  e.preventDefault();
   const p=getPos(e);
-  if(!inBaseZone(p.y)) return;
-  drag={sx:p.x,sy:p.y,x:p.x,y:p.y};
+  if(!inBaseZone(p.y)) return;          // laisse scroller si on n'est pas en zone de tir
+  e.preventDefault();                   // on commence un tir -> bloque le scroll
+  canvas.style.touchAction='none';
+  drag={sx:p.x, sy:p.y, x:p.x, y:p.y};
 }
 
-canvas.addEventListener('mousemove',moveDrag,{passive:false});
+canvas.addEventListener('mousemove',moveDrag);
 canvas.addEventListener('touchmove',moveDrag,{passive:false});
 function moveDrag(e){
   if(!drag) return;
   const p=getPos(e); drag.x=p.x; drag.y=p.y; updatePowerUI(drag);
 }
 
-canvas.addEventListener('mouseup',endDrag); canvas.addEventListener('mouseleave',endDrag);
+canvas.addEventListener('mouseup',endDrag);
+canvas.addEventListener('mouseleave',endDrag);
 canvas.addEventListener('touchend',endDrag);
 function endDrag(e){
   if(!drag) return;
-  let vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.hypot(vx,vy);
+  const vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.hypot(vx,vy);
   if(len>5){
-    // clamp vitesse sur MAX_DRAG (puissance)
-    const p=Math.min(len,MAX_DRAG);
-    const ux=vx/len, uy=vy/len;
-    const speed=p*POWER_K;
-    ball.x=drag.sx; ball.y=drag.sy; ball.vx=ux*speed; ball.vy=uy*speed; ball.active=true; ball.age=0;
+    const cap=Math.min(len, ARROW_MAX);
+    const ux=vx/len,  uy=vy/len;
+    const speed=cap*POWER_K;
+    ball.x=drag.sx; ball.y=drag.sy;
+    ball.vx=ux*speed; ball.vy=uy*speed;
+    ball.active=true; ball.age=0;
   }
   drag=null; updatePowerUI(null);
+  canvas.style.touchAction='pan-y';   // re-permet le scroll
 }
 
 function updatePowerUI(d){
-  if(!d){ powPct.textContent='0%'; powBar.style.width='0%'; powBar.style.background=COLOR_BLUE; return; }
-  let vx=d.x-d.sx, vy=d.y-d.sy, len=Math.hypot(vx,vy), p=Math.min(len,MAX_DRAG);
-  const pct=Math.round((p/MAX_DRAG)*100);
-  powPct.textContent=pct+'%'; powBar.style.width=pct+'%';
-  powBar.style.background = pct<40?COLOR_BLUE:(pct<75?COLOR_GREEN:'#ffb74a');
+  if(!d){ elPowerPct.textContent='0%'; elPowerFill.style.width='0%'; elPowerFill.style.background='#4da6ff'; return; }
+  const vx=d.x-d.sx, vy=d.y-d.sy;
+  const len=Math.hypot(vx,vy), p=Math.min(len, ARROW_MAX);
+  const pct=Math.round((p/ARROW_MAX)*100);
+  elPowerPct.textContent=pct+'%';
+  elPowerFill.style.width=pct+'%';
+  elPowerFill.style.background = pct<40 ? '#4da6ff' : (pct<75 ? '#38d67a' : '#ffb74a');
 }
 
-/* ===== Règle couleurs ===== */
+/* ========= Changement couleur ========= */
 function onLumieHit(L){
+  const t=now(); if(t < L.lockedUntil) return;     // verrou : ignore les chocs
   const before=L.color;
   if(before==='red'){
-    L.color = (Math.random()<0.5)?'green':'blue';
-    // première attribution des équipes
+    L.color=(Math.random()<0.5)?'green':'blue';
     if(!playerColors[1] && !playerColors[2]){
       playerColors[currentPlayer]=L.color;
-      playerColors[(currentPlayer===1)?2:1] = (L.color==='green')?'blue':'green';
-      updateBadge();
+      playerColors[(currentPlayer===1)?2:1]=(L.color==='green'?'blue':'green');
+      renderBadge();
     }
-  }else if(before==='green'){
-    L.color='blue';
-  }else if(before==='blue'){
-    L.color='green';
-  }
-  // scoring & victoire
-  updateScore();
-  checkWin();
+  }else if(before==='green'){ L.color='blue'; }
+  else if(before==='blue'){  L.color='green'; }
 
-  // suivi des gains/pertes si équipes déjà fixées
+  // suivi gains/pertes si équipes définies
   if(playerColors[1]){
     if(L.color===playerColors[currentPlayer] && before!==playerColors[currentPlayer]) gainedThisTurn++;
     if(before===playerColors[currentPlayer] && L.color!==playerColors[currentPlayer]) lostThisTurn++;
   }
+
+  L.lockedUntil = t + LOCK_MS; // 0.4 s de cooldown
+  updateScore(); checkWin();
 }
 
-// Anti-spam & “bouge → change”
-function tryToggleOnMove(L){
-  const now=performance.now();
-  if(!L.lastHit) L.lastHit=0;
-  if(now-L.lastHit < COLOR_COOLDOWN) return;
-  if(Math.hypot(L.vx,L.vy) < MOVE_EPS) return;
-  onLumieHit(L);
-  L.lastHit = now;
-}
-
-/* ===== Victoire ===== */
+/* ========= Win & confettis ========= */
 function checkWin(){const c=countColors(); if(c.g===LUMIES_N) triggerWin('green'); else if(c.b===LUMIES_N) triggerWin('blue');}
 function triggerWin(c){
-  gameOver=true; winColor=c; if(ball){ball.active=false; ball.vx=ball.vy=0;}
+  gameOver=true; winColor=c; ball.active=false; ball.vx=ball.vy=0;
   spawnConfetti(220,c);
 }
 function spawnConfetti(n,c){
-  confetti.length=0;
-  const cx=canvas.width/2, cy=canvas.height/2;
-  const base=(c==='green')?COLOR_GREEN:COLOR_BLUE;
+  confetti=[]; const cx=canvas.width/2, cy=canvas.height/2, base=(c==='green')?COLOR_GREEN:COLOR_BLUE;
   for(let i=0;i<n;i++){
     const a=Math.random()*Math.PI*2, sp=3+Math.random()*5;
     const clr=(Math.random()<.15)?'#ffffff':base;
-    confetti.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:120+Math.random()*60,clr, size:2+Math.random()*3, rot:Math.random()*Math.PI});
+    confetti.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,life:120+Math.random()*60,clr:clr,size:2+Math.random()*3,rot:Math.random()*Math.PI});
   }
 }
 function stepConfetti(){
@@ -346,156 +307,137 @@ function stepConfetti(){
   }
 }
 
-/* ===== Physique ===== */
+/* ========= Tour suivant ========= */
+function endOfTurn(){
+  if(!playerColors[1]) return; // tant que les équipes ne sont pas fixées
+  if(gainedThisTurn>0 && lostThisTurn===0){
+    // rejoue
+  }else{
+    currentPlayer=(currentPlayer===1)?2:1;
+  }
+  gainedThisTurn=0; lostThisTurn=0;
+
+  const midX=canvas.width*0.5, launchY=canvas.height*0.10;
+  ball.x=midX; ball.y=(currentPlayer===1?canvas.height-launchY:launchY);
+  ball.vx=0; ball.vy=0; ball.active=false;
+  renderBadge();
+}
+
+/* ========= Physique ========= */
 function step(){
   stepConfetti();
 
-  // Balle jaune
   if(ball && ball.active){
     ball.x+=ball.vx; ball.y+=ball.vy; ball.vx*=FRICTION; ball.vy*=FRICTION; ball.age+=16;
+
+    // murs
     if(ball.x<ball.r){ball.x=ball.r;ball.vx=-ball.vx*RESTIT;}
     if(ball.x>canvas.width-ball.r){ball.x=canvas.width-ball.r;ball.vx=-ball.vx*RESTIT;}
     if(ball.y<ball.r){ball.y=ball.r;ball.vy=-ball.vy*RESTIT;}
     if(ball.y>canvas.height-ball.r){ball.y=canvas.height-ball.r;ball.vy=-ball.vy*RESTIT;}
 
-    for(let i=0;i<lumies.length;i++) collideBallLumie(ball, lumies[i]);
+    // collisions balle-lumie
+    for(let i=0;i<lumies.length;i++){
+      collideBallLumie(ball, lumies[i]);
+    }
 
+    // arrêt de la balle
     if(Math.abs(ball.vx)<0.05 && Math.abs(ball.vy)<0.05){ ball.active=false; endOfTurn(); }
   }
 
-  // Lumies : frottements + murs + toggle on move
+  // lumies -> déplacement + murs
   for(let i=0;i<lumies.length;i++){
-    const L=lumies[i];
-    let hitWall=false;
+    const L=lumies[i]; let hit=false;
     L.x+=L.vx; L.y+=L.vy; L.vx*=ROLL_F; L.vy*=ROLL_F;
-
-    if(L.x<L.r){L.x=L.r;L.vx=-L.vx*RESTIT;hitWall=true;}
-    if(L.x>canvas.width-L.r){L.x=canvas.width-L.r;L.vx=-L.vx*RESTIT;hitWall=true;}
-    if(L.y<L.r){L.y=L.r;L.vy=-L.vy*RESTIT;hitWall=true;}
-    if(L.y>canvas.height-L.r){L.y=canvas.height-L.r;L.vy=-L.vy*RESTIT;hitWall=true;}
-    if(hitWall) tryToggleOnMove(L);
+    if(L.x<L.r){L.x=L.r;L.vx=-L.vx*RESTIT;hit=true;}
+    if(L.x>canvas.width-L.r){L.x=canvas.width-L.r;L.vx=-L.vx*RESTIT;hit=true;}
+    if(L.y<L.r){L.y=L.r;L.vy=-L.vy*RESTIT;hit=true;}
+    if(L.y>canvas.height-L.r){L.y=canvas.height-L.r;L.vy=-L.vy*RESTIT;hit=true;}
+    if(hit) onLumieHit(L);
   }
 
-  // Collisions entre lumies
-  for(let i=0;i<lumies.length;i++)
-    for(let j=i+1;j<lumies.length;j++)
+  // collisions lumie-lumie
+  for(let i=0;i<lumies.length;i++){
+    for(let j=i+1;j<lumies.length;j++){
       collideLumies(lumies[i],lumies[j]);
+    }
+  }
 }
 
 function collideBallLumie(B,L){
-  let dx=L.x-B.x, dy=L.y-B.y;
-  let d=Math.hypot(dx,dy);
-  const minD=B.r+L.r;
+  const dx=L.x-B.x, dy=L.y-B.y, d=Math.hypot(dx,dy), min=B.r+L.r;
+  if(d>0 && d<min){
+    const nx=dx/d, ny=dy/d, ov=min-d;
+    B.x-=nx*ov*0.5; B.y-=ny*ov*0.5;
+    L.x+=nx*ov*0.5; L.y+=ny*ov*0.5;
 
-  if(d===0){ dx=1e-6; d=1e-6; }
-  if(d>=minD) return;
+    const rvx=B.vx-L.vx, rvy=B.vy-L.vy;
+    let vn=rvx*nx+rvy*ny;
+    if(vn>0) return; // déjà en séparation
 
-  const nx=dx/d, ny=dy/d;
-  const overlap=minD-d;
+    // impulse
+    const j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
+    B.vx+=jx; B.vy+=jy;
+    L.vx-=jx; L.vy-=jy;
 
-  // séparation
-  B.x-=nx*overlap*0.5; B.y-=ny*overlap*0.5;
-  L.x+=nx*overlap*0.5; L.y+=ny*overlap*0.5;
-
-  // impulsion élastique (avec signe correct)
-  const rvx=B.vx-L.vx, rvy=B.vy-L.vy;
-  const vn = rvx*nx + rvy*ny;
-  if(vn>0) return;
-
-  const j=-(1+RESTIT)*vn/2;
-  const jx=j*nx, jy=j*ny;
-  B.vx -= jx; B.vy -= jy;
-  L.vx += jx; L.vy += jy;
-
-  tryToggleOnMove(L);
+    // déclenche couleur sur vrai choc
+    if(Math.abs(vn) > 0.08) onLumieHit(L);
+  }
 }
 
 function collideLumies(A,B){
-  let dx=B.x-A.x, dy=B.y-A.y;
-  let d=Math.hypot(dx,dy);
-  const minD=A.r+B.r;
+  const dx=B.x-A.x, dy=B.y-A.y, d=Math.hypot(dx,dy), min=A.r+B.r;
+  if(d>0 && d<min){
+    const nx=dx/d, ny=dy/d, ov=min-d;
+    A.x-=nx*ov*0.5; A.y-=ny*ov*0.5;
+    B.x+=nx*ov*0.5; B.y+=ny*ov*0.5;
 
-  if(d===0){ dx=1e-6; d=1e-6; }
-  if(d>=minD) return;
+    const rvx=A.vx-B.vx, rvy=A.vy-B.vy;
+    let vn=rvx*nx+rvy*ny;
+    const j=-(1+RESTIT)*vn/2, jx=j*nx, jy=j*ny;
+    A.vx+=jx; A.vy+=jy; B.vx-=jx; B.vy-=jy;
 
-  const nx=dx/d, ny=dy/d;
-  const overlap=minD-d;
-
-  A.x-=nx*overlap*0.5; A.y-=ny*overlap*0.5;
-  B.x+=nx*overlap*0.5; B.y+=ny*overlap*0.5;
-
-  const rvx=A.vx-B.vx, rvy=A.vy-B.vy;
-  const vn=rvx*nx + rvy*ny;
-  if(vn>0) return;
-
-  const j=-(1+RESTIT)*vn/2;
-  const jx=j*nx, jy=j*ny;
-  A.vx -= jx; A.vy -= jy;
-  B.vx += jx; B.vy += jy;
-
-  tryToggleOnMove(A);
-  tryToggleOnMove(B);
-}
-
-/* ===== Tours ===== */
-function endOfTurn(){
-  if(!playerColors[1]){ // tant que couleurs non fixées, alternance simple
-    currentPlayer = (currentPlayer===1)?2:1;
-    repositionBall(); updateBadge(); return;
+    onLumieHit(A); onLumieHit(B);
   }
-  if(gainedThisTurn>0 && lostThisTurn===0){
-    // rejoue (on garde currentPlayer)
-  }else{
-    currentPlayer = (currentPlayer===1)?2:1;
-  }
-  gainedThisTurn=0; lostThisTurn=0;
-  repositionBall(); updateBadge();
-}
-function repositionBall(){
-  const midX=canvas.width*0.5;
-  const launchOffset=Math.max(56, canvas.height*0.14);
-  if(currentPlayer===1){ ball.x=midX; ball.y=canvas.height-launchOffset; }
-  else { ball.x=midX; ball.y=launchOffset; }
-  ball.vx=0; ball.vy=0; ball.active=false;
 }
 
-/* ===== Rendu ===== */
+/* ========= Rendu ========= */
 function drawDashed(x1,y1,x2,y2,seg,space){
-  let dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if(len===0) return;
-  // clamp visuel de la flèche
-  const maxLen = MAX_AIM_LEN;
-  if(len>maxLen){ const sc=maxLen/len; dx*=sc; dy*=sc; len=maxLen; x2=x1+dx; y2=y1+dy; }
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if(len===0) return;
   const nx=dx/len, ny=dy/len; let d=0, on=true, cx=x1, cy=y1;
-  while(d<len){ let step=(on?seg:space); if(d+step>len) step=len-d; const sx=nx*step, sy=ny*step;
-    if(on){ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+sx,cy+sy); ctx.stroke(); }
+  ctx.beginPath();
+  while(d<len){
+    let step=(on?seg:space); if(d+step>len) step=len-d;
+    const sx=nx*step, sy=ny*step;
+    if(on){ ctx.moveTo(cx,cy); ctx.lineTo(cx+sx,cy+sy); }
     cx+=sx; cy+=sy; d+=step; on=!on;
   }
+  ctx.stroke();
 }
 
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Fond
-  if(mode==="night"){
+  // fond jour/nuit
+  if(mode==='night'){
     const g=ctx.createRadialGradient(canvas.width*.5,canvas.height*.5,10,canvas.width*.5,canvas.height*.5,Math.max(canvas.width,canvas.height)*.8);
     g.addColorStop(0,'#16224a'); g.addColorStop(1,'#0b1020'); ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
-  } else {
-    const g2=ctx.createLinearGradient(0,0,0,canvas.height);
-    g2.addColorStop(0,'#6abf69'); g2.addColorStop(1,'#2e7d32'); ctx.fillStyle=g2; ctx.fillRect(0,0,canvas.width,canvas.height);
+  }else{
+    const g2=ctx.createLinearGradient(0,0,0,canvas.height); g2.addColorStop(0,'#6abf69'); g2.addColorStop(1,'#2e7d32');
+    ctx.fillStyle=g2; ctx.fillRect(0,0,canvas.width,canvas.height);
   }
 
-  // bases (semi-cercle haut et bas)
+  // bases (demi-cercles)
   const rBase=Math.min(canvas.width,canvas.height)*0.10;
-  ctx.beginPath(); ctx.arc(canvas.width*.5,56, rBase, Math.PI, 0, false); ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fill();
-  ctx.beginPath(); ctx.arc(canvas.width*.5,canvas.height, rBase, 0, Math.PI, false); ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(canvas.width*.5,0,rBase,0,Math.PI,true); ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(canvas.width*.5,canvas.height,rBase,Math.PI,0,true); ctx.fillStyle='rgba(255,255,255,0.22)'; ctx.fill();
 
   // ligne médiane
   ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.moveTo(canvas.width*.06, canvas.height*.5); ctx.lineTo(canvas.width*.94, canvas.height*.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(canvas.width*.08, canvas.height*.5); ctx.lineTo(canvas.width*.92, canvas.height*.5); ctx.stroke();
 
   // lumies
-  for(let i=0;i<lumies.length;i++){
-    const L=lumies[i];
+  for(const L of lumies){
     ctx.beginPath(); ctx.arc(L.x,L.y,L.r*1.5,0,Math.PI*2); ctx.fillStyle='rgba(255,90,103,0.20)'; ctx.fill();
     const fill=(L.color==='red')?COLOR_RED:(L.color==='green'?COLOR_GREEN:COLOR_BLUE);
     ctx.beginPath(); ctx.arc(L.x,L.y,L.r,0,Math.PI*2); ctx.fillStyle=fill; ctx.fill();
@@ -504,52 +446,73 @@ function draw(){
 
   // luminator
   if(ball){
-    ctx.beginPath(); ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2); ctx.fillStyle='#ffd24a'; ctx.fill();
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2);
+    ctx.fillStyle='#ffd24a'; ctx.fill();
     ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.stroke();
   }
 
-  // flèche de visée
+  // flèche (limitée à ARROW_MAX)
   if(drag){
+    const vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.hypot(vx,vy);
+    const cap=Math.min(len, ARROW_MAX);
+    const fx=drag.sx + (vx/len)*cap, fy=drag.sy + (vy/len)*cap;
+    const ang=Math.atan2(vy,vx), l=12;
+
     ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=2;
-    drawDashed(drag.sx,drag.sy,drag.x,drag.y,6,6);
-    const vx=drag.x-drag.sx, vy=drag.y-drag.sy, ang=Math.atan2(vy,vx);
-    const ax=drag.x, ay=drag.y, l=12;
+    drawDashed(drag.sx, drag.sy, fx, fy, 6, 6);
     ctx.beginPath();
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - l*Math.cos(ang - Math.PI/6), ay - l*Math.sin(ang - Math.PI/6));
-    ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - l*Math.cos(ang + Math.PI/6), ay - l*Math.sin(ang + Math.PI/6));
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx - l*Math.cos(ang - Math.PI/6), fy - l*Math.sin(ang - Math.PI/6));
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx - l*Math.cos(ang + Math.PI/6), fy - l*Math.sin(ang + Math.PI/6));
     ctx.stroke();
   }
 
   // confettis
-  for(let i=0;i<confetti.length;i++){
-    const p=confetti[i]; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
-    ctx.fillStyle=p.clr; ctx.fillRect(-p.size*0.5,-p.size*0.5,p.size,p.size); ctx.restore();
+  for(const p of confetti){
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+    ctx.fillStyle=p.clr; ctx.fillRect(-p.size*0.5,-p.size*0.5,p.size,p.size);
+    ctx.restore();
   }
 
-  // overlay victoire
+  // écran de victoire “LUMIOS”
   if(gameOver){
     const cx=canvas.width/2, cy=canvas.height/2, R=Math.min(canvas.width,canvas.height)*0.30;
     ctx.fillStyle='#ffffff'; ctx.beginPath();
-    const spikes=14; for(let k=0;k<spikes;k++){const a=(k/spikes)*Math.PI*2, r=(k%2?R*0.55:R), x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r; (k?ctx.lineTo(x,y):ctx.moveTo(x,y));}
+    const spikes=14; for(let k=0;k<spikes;k++){const ang=(k/spikes)*Math.PI*2, r=(k%2?R*0.55:R), x=cx+Math.cos(ang)*r, y=cy+Math.sin(ang)*r; (k?ctx.lineTo(x,y):ctx.moveTo(x,y));}
     ctx.closePath(); ctx.fill();
     ctx.font=Math.floor(R*0.45)+'px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillStyle=(winColor==='green')?COLOR_GREEN:COLOR_BLUE; ctx.fillText('LUMIOS',cx,cy);
+    ctx.fillStyle=(winColor==='green')?COLOR_GREEN:COLOR_BLUE;
+    ctx.fillText('LUMIOS',cx,cy);
   }
 }
 
-/* ===== Timer + boucle ===== */
+/* ========= UI boutons ========= */
+btnMode.onclick=function(){
+  if(mode==='night'){ mode='day'; btnMode.textContent='☀️ Jour'; btnMode.style.background='#4da6ff'; btnMode.style.color='#fff'; }
+  else { mode='night'; btnMode.textContent='🌙 Nuit'; btnMode.style.background='#38d67a'; btnMode.style.color='#000'; }
+};
+
+btnNext.onclick=function(){
+  if(ball.active){ ball.active=false; ball.vx=ball.vy=0; }
+  endOfTurn();
+};
+btnReplay.onclick=function(){
+  gameOver=false; winColor=null; confetti=[]; playerColors={1:null,2:null};
+  currentPlayer=1; layout();
+};
+
+/* ========= Timer + boucle ========= */
 setInterval(function(){
-  const sTot=Math.floor((Date.now()-tStart)/1000);
-  const m=Math.floor(sTot/60), s=sTot%60;
-  hudClock.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  const sTotal=Math.floor((Date.now()-tStart)/1000);
+  const m=Math.floor(sTotal/60), s=sTotal%60;
+  elClock.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
 },1000);
 
 function loop(){ step(); draw(); requestAnimationFrame(loop); }
 
-/* Start */
-sizeCanvas(); resetGame(); loop();
+/* start */
+resize(); layout(); renderBadge(); loop();
 </script>
 </body>
 </html>
