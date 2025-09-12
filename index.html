@@ -22,10 +22,14 @@
 
   /* HUD en haut (toujours visible) */
   #hud{
-    position:fixed; z-index:6; left:0; top:0; right:0;
-    height:56px; background:rgba(8,12,28,.95);
-    display:flex; align-items:center; gap:14px; padding:0 14px;
-    box-shadow:0 6px 16px rgba(0,0,0,.35);
+  position:fixed; z-index:6; left:0; top:0; right:0;
+  height:56px; background:rgba(8,12,28,.95);
+  display:flex; align-items:center; gap:14px;
+
+  /* <- safe-area so nothing is cut by the iOS inset */
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right:max(14px, env(safe-area-inset-right));
+  box-shadow:0 6px 16px rgba(0,0,0,.35);
   }
   #clock{font-weight:700; font-size:18px; min-width:64px; text-align:left;}
   #labelPow{opacity:.9; font-size:14px}
@@ -33,9 +37,18 @@
   #powBar{height:100%; width:0%}
   #powPct{min-width:40px; font-weight:700; text-align:right}
   #badge{
-    margin-left:auto; font-weight:700; font-size:16px;
-    background:var(--blue); color:#000; padding:8px 14px;
-    border-radius:10px; box-shadow:0 6px 16px rgba(0,0,0,.25);
+  margin-left:auto;
+  margin-right: max(8px, env(safe-area-inset-right));
+  font-weight:700; font-size:16px;
+  background:#4da6ff; color:#000;
+  padding:6px 10px;
+  border-radius:10px;
+  box-shadow:0 6px 16px rgba(0,0,0,.25);
+
+  white-space:nowrap;
+  max-width:48vw;          /* empêche de dépasser l'écran */
+  overflow:hidden;
+  text-overflow:ellipsis;
   }
 
   /* Canvas occupe tout l'écran sous le HUD */
@@ -73,6 +86,15 @@
     }
     #wrap{height:auto; min-height:100vh;}
     #canvas{position:relative; inset:auto; width:100%; height:calc(100vh - 56px);}
+  }
+
+  /* Très petit écran (iPhone mini / étroit) -> badge plus petit */
+  @media (max-width: 380px){
+    #badge{
+      font-size:14px;
+      max-width:54vw;
+      padding:6px 8px;
+    }
   }
 </style>
 </head>
@@ -148,11 +170,11 @@ const LUMIES_N=5, R_LUMIE=22, R_BALL=16;
 const LUMIE_SPACING = R_LUMIE * 4;
 const RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
 const POWER_K=0.09, MAX_DRAG=320;
-const MAX_AIM_LEN = 160;           // longueur max de la flèche de visée (plus dur)
+const MAX_AIM_LEN = 120;           // longueur max de la flèche de visée (plus dur)
 const BASE_ZONE_RATIO=0.16;        // zone de lancement plus haute
 
 // Détections robustes
-const MOVE_EPS = 0.18;             // vitesse mini considérée comme "mouvement"
+const MOVE_EPS = 0;             // vitesse mini considérée comme "mouvement"
 const COLOR_COOLDOWN = 400;        // ms blocage changement couleur anti-clignotement
 
 /* ===== État ===== */
