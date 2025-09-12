@@ -15,7 +15,7 @@
     --red:#ff5a67;
     --gold:#ffd24a;
     --text:#fff;
-    --hudH:56px;           /* hauteur du HUD */
+    --hudH:56px;           /* <-- hauteur du HUD utilisée plus bas */
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;height:100%;}
   /* Empêche le double-tap zoom sur mobile */
@@ -32,29 +32,31 @@
 
   /* timer + libellé puissance + jauge + % alignés à gauche */
   #clock{ font-weight:700; letter-spacing:.5px; }
-  #powerRow{ display:flex; align-items:center; gap:0px; margin-left:12px; } /* conservé */
-  #powerTrack{ width:100px; height:10px; background:#121836; border-radius:999px; overflow:hidden } /* conservé */
-  #powerFill{ height:100%; width:0%; background:#4da6ff; } /* conservé */
+  #powerRow{ display:flex; align-items:center; gap:0px; margin-left:12px; } /* (non utilisé mais conservé) */
+  #powerTrack{ width:100px; height:10px; background:#121836; border-radius:999px; overflow:hidden } /* (non utilisé mais conservé) */
+  #powerFill{ height:100%; width:0%; background:#4da6ff; } /* (non utilisé mais conservé) */
 
-  /* IDs réels */
+  /* === Styles correspondant à tes IDs HTML réels === */
   #labelPow{ margin-left:8px; opacity:.85; }
   #powWrap{ width:140px; height:10px; background:#121836; border-radius:999px; overflow:hidden; margin:0 8px; }
   #powBar{ height:100%; width:0%; background:#4da6ff; }
   #powPct{ font-weight:700; }
 
-  /* Badge du joueur */
+  /* Badge du joueur, à droite, contenu toujours dans l’écran */
   #badge{
     margin-left:auto;
-    max-width:45vw;
+    max-width:45vw;          /* empêche de sortir à droite */
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     font-weight:800; font-size:16px;
     padding:8px 12px; border-radius:10px;
-    color:#000; background:#6ab7ff;
+    color:#000; background:#6ab7ff; /* couleur par défaut */
     border:2px solid rgba(255,255,255,.15);
   }
 
-  /* Zone de jeu (canvas sous HUD) */
-  #wrap{ position:relative; width:100vw; height:100vh; }
+  /* Canvas occupe tout l'écran sous le HUD */
+  #wrap{
+    position:relative; width:100vw; height:100vh;
+  }
   #canvas{
     position:absolute; inset:56px 0 0 0;   /* sous le HUD */
     display:block; width:100%; height:calc(100% - 56px);
@@ -79,14 +81,7 @@
   #btnBuy{display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;text-align:center;font-weight:700;background:#ff4d6d;color:#fff;text-decoration:none;box-shadow:0 6px 16px rgba(0,0,0,.25)}
   #btnBuy:hover{filter:brightness(1.08)}
 
-  /* le select a le look .btn aussi */
-  #modeSelect.btn {
-    -webkit-appearance:none; appearance:none;
-    background:#222a56; color:#fff;
-    font-weight:700;
-  }
-
-  /* Mobile : panel sous le canvas (scroll) */
+  /* Bandeau latéral masqué sur mobile : panel placé en dessous (scroll) */
   @media (max-width: 768px){
     #panel{
       position:static; transform:none; width:100%; max-width:420px;
@@ -94,8 +89,6 @@
     }
     #wrap{height:auto; min-height:100vh;}
     #canvas{position:relative; inset:auto; width:100%; height:calc(100vh - 56px);}
-    /* badge plus compact si besoin */
-    #badge{ font-size:14px; padding:6px 10px; border-radius:8px; max-width:54vw; }
   }
 </style>
 </head>
@@ -122,13 +115,6 @@
     <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
     <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
   </div>
-
-  <!-- ⬇️ Nouveau : choix mode -->
-  <select id="modeSelect" class="btn">
-    <option value="pvp">2 Joueurs</option>
-    <option value="easy">Solo vs Robot (Facile)</option>
-    <option value="hard">Solo vs Robot (Difficile)</option>
-  </select>
 
   <button id="btnMode" class="btn">🌙 Nuit</button>
   <button id="btnNext" class="btn">⏭️ Skip</button>
@@ -159,6 +145,8 @@ const badge=document.getElementById('badge');
 const elCntG=document.getElementById('cntG'), elCntB=document.getElementById('cntB');
 
 function sizeCanvas(){
+  // canvas prend toute la place disponible (géré en CSS),
+  // on prend sa vraie taille CSS
   const r=canvas.getBoundingClientRect();
   canvas.width = Math.max(1, Math.floor(r.width));
   canvas.height= Math.max(1, Math.floor(r.height));
@@ -176,28 +164,20 @@ const LUMIES_N=5, R_LUMIE=22, R_BALL=16;
 const LUMIE_SPACING = R_LUMIE * 4;
 const RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
 const POWER_K=0.09, MAX_DRAG=320;
-const MAX_AIM_LEN = 120;           // longueur max de la flèche de visée
-const BASE_ZONE_RATIO=0.16;        // zone de lancement
+const MAX_AIM_LEN = 120;           // longueur max de la flèche de visée (plus dur)
+const BASE_ZONE_RATIO=0.16;        // zone de lancement plus haute
 
 // Détections robustes
-const MOVE_EPS = 0;
-const COLOR_COOLDOWN = 4000;        // ms
+const MOVE_EPS = 0;             // vitesse mini considérée comme "mouvement"
+const COLOR_COOLDOWN = 400;        // ms blocage changement couleur anti-clignotement
 
 /* ===== État ===== */
 let lumies=[], ball=null, drag=null, tStart=Date.now();
-let mode="night";                         // "night" ou "day"
-let currentPlayer=1;
-let playerColors={1:null,2:null};
+let mode="night"; // "night" ou "day"
+let currentPlayer=1;                       // 1 ou 2
+let playerColors={1:null,2:null};          // défini lors de la 1ère rouge touchée
 let gainedThisTurn=0, lostThisTurn=0;
 let gameOver=false, winColor=null, confetti=[];
-
-/* ⬇️ Nouveau : mode de jeu */
-let gameMode = "pvp"; // "pvp" | "easy" | "hard"
-const modeSelect = document.getElementById('modeSelect');
-modeSelect.onchange = function(){
-  gameMode = this.value;
-  resetGame();           // on redémarre proprement avec ce mode
-};
 
 /* ===== UI ===== */
 const btnMode=document.getElementById('btnMode');
@@ -231,7 +211,7 @@ function layout(){
   const midX=canvas.width*0.5;
   const midY=canvas.height*0.5;
 
-  // Spacing responsive
+  // Spacing responsive (mobile: on compacte pour rentrer)
   let spacing=LUMIE_SPACING, startX=midX - spacing*(LUMIES_N-1)/2;
   const isMobile=(canvas.width<=768) || (window.innerHeight>window.innerWidth);
   if(isMobile){
@@ -248,7 +228,7 @@ function layout(){
     lumies.push({x, y:midY, vx:0, vy:0, r:R_LUMIE, color:'red', lastHit:0});
   }
 
-  const launchOffset = Math.max(56, canvas.height*0.14);
+  const launchOffset = Math.max(56, canvas.height*0.14); // assez haut/bas pour être visible
   if(currentPlayer===1){
     ball={x:midX, y:canvas.height-launchOffset, vx:0, vy:0, r:R_BALL, active:false, age:0};
   }else{
@@ -285,10 +265,6 @@ canvas.addEventListener('mousedown',startDrag,{passive:false});
 canvas.addEventListener('touchstart',startDrag,{passive:false});
 function startDrag(e){
   if(gameOver) return;
-
-  // ⬇️ Si mode Solo et c'est au robot (joueur 2), on ignore l'entrée utilisateur
-  if(gameMode!=='pvp' && currentPlayer===2) return;
-
   const p=getPos(e);
   if(!inBaseZone(p.y)) return;   // ne pas bloquer le scroll si hors zone de tir
   e.preventDefault();            // on démarre un tir : bloque le scroll
@@ -308,6 +284,7 @@ function endDrag(e){
   if(!drag) return;
   let vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.hypot(vx,vy);
   if(len>5){
+    // clamp vitesse sur MAX_DRAG (puissance)
     const p=Math.min(len,MAX_DRAG);
     const ux=vx/len, uy=vy/len;
     const speed=p*POWER_K;
@@ -431,27 +408,20 @@ function collideBallLumie(B,L){
   const nx=dx/d, ny=dy/d;
   const overlap=minD-d;
 
-  // Séparation géométrique (petit push-out)
+  // séparation
   B.x-=nx*overlap*0.5; B.y-=ny*overlap*0.5;
   L.x+=nx*overlap*0.5; L.y+=ny*overlap*0.5;
 
-  // Vitesse relative sur la normale
+  // impulsion élastique (avec signe correct)
   const rvx=B.vx-L.vx, rvy=B.vy-L.vy;
   const vn = rvx*nx + rvy*ny;
+  if(vn>0) return;
 
-  // ⚠️ Même en séparation (vn>0), on considère qu'il y a eu contact -> toggle possible
-  if (vn > 0){
-    tryToggleOnMove(L);
-    return;
-  }
-
-  // Impulsion élastique (masses égales)
   const j=-(1+RESTIT)*vn/2;
   const jx=j*nx, jy=j*ny;
   B.vx -= jx; B.vy -= jy;
   L.vx += jx; L.vy += jy;
 
-  // Changement couleur déclenché par le mouvement
   tryToggleOnMove(L);
 }
 
@@ -466,19 +436,12 @@ function collideLumies(A,B){
   const nx=dx/d, ny=dy/d;
   const overlap=minD-d;
 
-  // Séparation
   A.x-=nx*overlap*0.5; A.y-=ny*overlap*0.5;
   B.x+=nx*overlap*0.5; B.y+=ny*overlap*0.5;
 
   const rvx=A.vx-B.vx, rvy=A.vy-B.vy;
   const vn=rvx*nx + rvy*ny;
-
-  if (vn > 0){
-    // Même logique : contact réel, on autorise le toggle
-    tryToggleOnMove(A);
-    tryToggleOnMove(B);
-    return;
-  }
+  if(vn>0) return;
 
   const j=-(1+RESTIT)*vn/2;
   const jx=j*nx, jy=j*ny;
@@ -489,21 +452,12 @@ function collideLumies(A,B){
   tryToggleOnMove(B);
 }
 
-
-
 /* ===== Tours ===== */
 function endOfTurn(){
   if(!playerColors[1]){ // tant que couleurs non fixées, alternance simple
     currentPlayer = (currentPlayer===1)?2:1;
-    repositionBall(); updateBadge();
-
-    // ⬇️ Si mode Solo et c'est au robot, jouer automatiquement
-    if(gameMode!=='pvp' && currentPlayer===2 && !gameOver){
-      setTimeout(robotPlay, 800);
-    }
-    return;
+    repositionBall(); updateBadge(); return;
   }
-
   if(gainedThisTurn>0 && lostThisTurn===0){
     // rejoue (on garde currentPlayer)
   }else{
@@ -511,60 +465,13 @@ function endOfTurn(){
   }
   gainedThisTurn=0; lostThisTurn=0;
   repositionBall(); updateBadge();
-
-  // ⬇️ mode Solo : robot joue quand c'est à lui
-  if(gameMode!=='pvp' && currentPlayer===2 && !gameOver){
-    setTimeout(robotPlay, 800);
-  }
 }
-
 function repositionBall(){
   const midX=canvas.width*0.5;
   const launchOffset=Math.max(56, canvas.height*0.14);
   if(currentPlayer===1){ ball.x=midX; ball.y=canvas.height-launchOffset; }
   else { ball.x=midX; ball.y=launchOffset; }
   ball.vx=0; ball.vy=0; ball.active=false;
-}
-
-/* ⬇️ Nouveau : IA joueur 2 */
-function robotPlay(){
-  if(gameOver) return;
-
-  // Choix d'une cible
-  let target = null;
-
-  if(gameMode === 'easy' || !playerColors[1]){
-    // Facile : cible au hasard
-    target = lumies[Math.floor(Math.random()*lumies.length)];
-  } else {
-    // Difficile : privilégier une boule qui n'est pas déjà à sa couleur
-    const myCol = playerColors[2]; // couleur du robot
-    const candidates = lumies.filter(l => l.color !== myCol);
-    target = (candidates.length? candidates[Math.floor(Math.random()*candidates.length)]
-                               : lumies[Math.floor(Math.random()*lumies.length)]);
-  }
-
-  // Direction depuis la base du joueur 2 (la balle y est déjà repositionnée)
-  const dx = target.x - ball.x;
-  const dy = target.y - ball.y;
-  const len = Math.hypot(dx,dy) || 1;
-  const ux = dx/len, uy = dy/len;
-
-  // Puissance selon mode
-  let power;
-  if(gameMode === 'easy'){
-    power = 0.45 + Math.random()*0.25; // 45% à 70%
-  } else if (gameMode === 'hard'){
-    power = 0.65 + Math.random()*0.25; // 65% à 90%
-  } else {
-    power = 0.6;
-  }
-  const speed = MAX_DRAG * POWER_K * power;
-
-  ball.vx = ux * speed;
-  ball.vy = uy * speed;
-  ball.active = true;
-  ball.age = 0;
 }
 
 /* ===== Rendu ===== */
