@@ -15,13 +15,18 @@
     --red:#ff5a67;
     --gold:#ffd24a;
     --text:#fff;
-    --hudH:56px;           /* hauteur du HUD */
+    --hudH:56px;
   }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;height:100%;}
-  /* Empêche le double-tap zoom sur mobile */
-  * { touch-action: manipulation; }
 
-  /* HUD en haut (toujours visible) */
+  /* Base */
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:Arial,Helvetica,sans-serif; height:100%;
+    overflow:hidden;      /* plein écran, pas de scroll */
+  }
+  *{ touch-action: manipulation; } /* évite le double-tap zoom mobile */
+
+  /* HUD (bandeau du haut) */
   #hud{
     position:fixed; inset:0 0 auto 0; height:var(--hudH);
     padding:8px calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
@@ -29,20 +34,21 @@
     background:rgba(5,10,25,.65); backdrop-filter:blur(8px);
     z-index:50;
   }
-
-  /* timer + libellé puissance + jauge + % alignés à gauche */
   #clock{ font-weight:700; letter-spacing:.5px; }
-  #powerRow{ display:flex; align-items:center; gap:0px; margin-left:12px; } /* conservé */
-  #powerTrack{ width:100px; height:10px; background:#121836; border-radius:999px; overflow:hidden } /* conservé */
-  #powerFill{ height:100%; width:0%; background:#4da6ff; } /* conservé */
+  #powerRow{ display:flex; align-items:center; gap:10px; }
+  #powerTrack{ width:120px; height:10px; background:#121836; border-radius:999px; overflow:hidden }
+  #powBar{ height:100%; width:0%; background:var(--blue); }
+  #powPct{ width:40px; text-align:right; }
 
-  /* IDs réels */
-  #labelPow{ margin-left:8px; opacity:.85; }
-  #powWrap{ width:140px; height:10px; background:#121836; border-radius:999px; overflow:hidden; margin:0 8px; }
-  #powBar{ height:100%; width:0%; background:#4da6ff; }
-  #powPct{ font-weight:700; }
+  /* hamburger */
+  #hamburger{
+    width:40px; height:40px; border-radius:10px;
+    border:2px solid rgba(255,255,255,.15);
+    background:rgba(255,255,255,.08); color:#fff; font-size:20px; font-weight:800;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
 
-  /* Badge du joueur */
+  /* badge joueur à droite, reste dans l'écran */
   #badge{
     margin-left:auto;
     max-width:45vw;
@@ -52,60 +58,62 @@
     color:#000; background:#6ab7ff;
     border:2px solid rgba(255,255,255,.15);
   }
+  @media (max-width: 380px){
+    #badge{ font-size:14px; max-width:54vw; padding:6px 8px; }
+  }
 
-  /* Zone de jeu (canvas sous HUD) */
+  /* zone de jeu */
   #wrap{ position:relative; width:100vw; height:100vh; }
   #canvas{
-    position:absolute; inset:56px 0 0 0;   /* sous le HUD */
-    display:block; width:100%; height:calc(100% - 56px);
-    touch-action: pan-y;                   /* autorise le scroll vertical */
+    position:absolute; inset:var(--hudH) 0 0 0;   /* sous le HUD */
+    width:100%; height:calc(100% - var(--hudH));
+    display:block;
   }
 
-  /* Panneau d’actions */
-  #panel{
-    width:140px;
-    position:fixed; left:12px; top:50%; transform:translateY(-50%);
-    z-index:5;
+  /* Menu déroulant (mobile & desktop) */
+  .menu{
+    position:fixed; top:var(--hudH); left:0; right:0;
+    max-height:0; overflow:hidden;
+    background:rgba(10,14,30,.95);
+    transition:max-height .25s ease;
+    z-index:60; padding:0 12px;
   }
-  .card{background:var(--panel);border-radius:10px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25);margin-bottom:8px}
-  #brand {
-  display:block;
-  background:var(--brand);
-  color:#fff;
-  font-weight:bold;
-  font-size:20px;
-  letter-spacing:2px;
-  text-align:center;
-  border-radius:10px;
-  text-decoration:none;   /* pas de soulignement */
+  .menu.open{ max-height:70vh; }
+  .menu-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 4px; border-bottom:1px solid rgba(255,255,255,.08);
   }
-  .row{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+  .menu .track{ flex:1; height:10px; background:#121836; border-radius:999px; overflow:hidden; }
+  .menu .fill{ height:100%; width:0%; background:var(--blue); }
+  .menu-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:12px 0; }
+  .menu .btn{ padding:10px 12px; border-radius:8px; font-weight:700; border:none; box-shadow:0 6px 16px rgba(0,0,0,.25); }
+  .menu .buy{ grid-column:1/-1; text-align:center; text-decoration:none; background:#ff4d6d; color:#fff; }
+
   .dot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
   .g{background:var(--green)} .b{background:var(--blue)}
   .btn{display:block;width:100%;margin-top:6px;padding:10px 12px;border-radius:8px;text-align:center;font-weight:bold;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.25);border:none}
-  #btnMode{background:var(--green);color:#000}
-  #btnNext{background:#ffb74a;color:#000}
-  #btnReplay{background:var(--blue);color:#fff}
-  #btnBuy{display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;text-align:center;font-weight:700;background:#ff4d6d;color:#fff;text-decoration:none;box-shadow:0 6px 16px rgba(0,0,0,.25)}
-  #btnBuy:hover{filter:brightness(1.08)}
+  #btnMode, #mBtnMode{background:var(--green);color:#000}
+  #btnNext, #mBtnNext{background:#ffb74a;color:#000}
+  #btnReplay, #mBtnReplay{background:var(--blue);color:#fff}
 
-  /* le select a le look .btn aussi */
-  #modeSelect.btn {
-    -webkit-appearance:none; appearance:none;
-    background:#222a56; color:#fff;
-    font-weight:700;
+  /* message d'aide */
+  #help{
+    position:absolute; left:50%; transform:translateX(-50%);
+    bottom:92px; color:#fff; opacity:.9; text-shadow:0 2px 8px rgba(0,0,0,.6);
+    font-weight:700; font-size:18px; pointer-events:none;
   }
 
-  /* Mobile : panel sous le canvas (scroll) */
-  @media (max-width: 768px){
-    #panel{
-      position:static; transform:none; width:100%; max-width:420px;
-      margin:18px auto; padding:0 12px;
-    }
-    #wrap{height:auto; min-height:100vh;}
-    #canvas{position:relative; inset:auto; width:100%; height:calc(100vh - 56px);}
-    /* badge plus compact si besoin */
-    #badge{ font-size:14px; padding:6px 10px; border-radius:8px; max-width:54vw; }
+  /* Encadré narration (visible sur desktop, masqué sur petit écran) */
+  #narration{
+    position:fixed; top:calc(var(--hudH) + 12px); left:12px;
+    width:280px; background:var(--panel); color:#fff;
+    border-radius:12px; box-shadow:0 6px 16px rgba(0,0,0,.25);
+    padding:12px 14px; line-height:1.4; z-index:55;
+  }
+  #narration h4{ margin:0 0 6px 0; font-size:14px; opacity:.85; font-weight:700; letter-spacing:.5px }
+  #narration p{ margin:0; font-size:14px }
+  @media (max-width:768px){
+    #narration{ display:none; }
   }
 </style>
 </head>
@@ -113,38 +121,53 @@
 
 <!-- HUD -->
 <div id="hud">
+  <button id="hamburger" aria-label="Menu">☰</button>
+
   <div id="clock">00:00</div>
-  <div id="labelPow">Power</div>
-  <div id="powWrap"><div id="powBar"></div></div>
-  <div id="powPct">0%</div>
+
+  <div id="powerRow">
+    <span>Power</span>
+    <div id="powerTrack"><div id="powBar"></div></div>
+    <div id="powPct">0%</div>
+  </div>
+
   <div id="badge">JOUEUR 1</div>
+</div>
+
+<!-- Menu déroulant -->
+<div id="dropMenu" class="menu">
+  <div class="menu-row">
+    <span class="label">Power</span>
+    <div class="track"><div class="fill" id="menuPowFill"></div></div>
+    <b id="menuPowPct">0%</b>
+  </div>
+  <div class="menu-row">
+    <span class="dot g"></span><span>Verts</span><b id="mCntG">0</b>
+  </div>
+  <div class="menu-row">
+    <span class="dot b"></span><span>Bleus</span><b id="mCntB">0</b>
+  </div>
+  <div class="menu-actions">
+    <button id="mBtnMode" class="btn">🌙 Nuit</button>
+    <button id="mBtnNext" class="btn">⏭️ Skip</button>
+    <button id="mBtnReplay" class="btn">🔄 Rejouer</button>
+    <a id="mBtnBuy" class="btn buy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">
+      🎁 Précommander un vrai Jeu Lumios pour Noël
+    </a>
+    <a class="btn buy" style="background:#e65a6a" href="https://www.lumios-le-jeu.fr/pages/regles-du-jeu-lumios" target="_blank" rel="noopener">📖 Règles</a>
+  </div>
 </div>
 
 <!-- Zone de jeu -->
 <div id="wrap">
   <canvas id="canvas"></canvas>
+  <div id="help">Lancez la balle en visant les boules</div>
 </div>
 
-<!-- Panneau (desktop à gauche, mobile en dessous après scroll) -->
-<div id="panel">
-  <a id="brand" class="card" href="https://www.lumios-le-jeu.fr/pages/regles-du-jeu-lumios" target="_blank" rel="noopener">Règles</a>
-
-  <div class="card">
-    <div class="row"><span><span class="dot g"></span>Verts</span><b id="cntG">0</b></div>
-    <div class="row"><span><span class="dot b"></span>Bleus</span><b id="cntB">0</b></div>
-  </div>
-
-  <!-- ⬇️ Nouveau : choix mode -->
-  <select id="modeSelect" class="btn">
-    <option value="pvp">2 Joueurs</option>
-    <option value="easy">Solo vs Robot (Facile)</option>
-    <option value="hard">Solo vs Robot (Difficile)</option>
-  </select>
-
-  <button id="btnMode" class="btn">🌙 Nuit</button>
-  <button id="btnNext" class="btn">⏭️ Skip</button>
-  <button id="btnReplay" class="btn">🔄 Rejouer</button>
-  <a id="btnBuy" href="https://www.lumios-le-jeu.fr/" target="_blank" rel="noopener">🎁 Précommander un vrai Jeu Lumios pour Noël</a>
+<!-- Encadré narration (desktop) -->
+<div id="narration">
+  <h4>Narration</h4>
+  <p id="narrText">Bienvenue dans Lumios 🟢🔵</p>
 </div>
 
 <script>
@@ -161,14 +184,30 @@
   }
 })();
 
-/* ===== Canvas ===== */
+/* ===== Canvas + éléments HUD ===== */
 const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
 const hudClock=document.getElementById('clock');
 const powBar=document.getElementById('powBar');
 const powPct=document.getElementById('powPct');
 const badge=document.getElementById('badge');
-const elCntG=document.getElementById('cntG'), elCntB=document.getElementById('cntB');
+const helpEl=document.getElementById('help');
+const narrText=document.getElementById('narrText');
 
+/* Menu */
+const hamburger = document.getElementById('hamburger');
+const dropMenu  = document.getElementById('dropMenu');
+const mPowFill  = document.getElementById('menuPowFill');
+const mPowPct   = document.getElementById('menuPowPct');
+const mCntG     = document.getElementById('mCntG');
+const mCntB     = document.getElementById('mCntB');
+
+hamburger.onclick = () => dropMenu.classList.toggle('open');
+
+document.getElementById('mBtnMode').onclick   = () => btnMode.click?.();
+document.getElementById('mBtnNext').onclick   = () => document.getElementById('btnNext')?.click();
+document.getElementById('mBtnReplay').onclick = () => document.getElementById('btnReplay')?.click();
+
+/* ===== Sizing ===== */
 function sizeCanvas(){
   const r=canvas.getBoundingClientRect();
   canvas.width = Math.max(1, Math.floor(r.width));
@@ -181,62 +220,71 @@ window.addEventListener('resize', sizeCanvas);
 const COLOR_RED   ='#ff5a67';
 const COLOR_GREEN ='#38d67a';
 const COLOR_BLUE  ='#4da6ff';
-const COLOR_GOLD  = '#ffd24a';   // ← AJOUT
+const COLOR_GOLD  ='#ffd24a';
 
 /* ===== Paramètres ===== */
 const LUMIES_N=5, R_LUMIE=22, R_BALL=16;
 const LUMIE_SPACING = R_LUMIE * 4;
-const RESTIT=0.95, FRICTION=0.992, ROLL_F=0.996;
-const POWER_K=0.09, MAX_DRAG=320;
-const MAX_AIM_LEN = 120;           // longueur max de la flèche de visée
-const BASE_ZONE_RATIO=0.16;        // zone de lancement
+const RESTIT=0.95;
+const FRICTION = 0.985;   // balle jaune
+const ROLL_F   = 0.980;   // lumies
+const STOP_EPS = 0.04;
 
-// Détections robustes
-const MOVE_EPS = 0.000;
-const COLOR_COOLDOWN = 4000;        // ms
+const POWER_K=0.09, MAX_DRAG=320;
+const MAX_AIM_LEN = 120;           // flèche visée
+const BASE_ZONE_RATIO=0.16;        // zone de tir
+
+// Détections robustes d’impact/mouvement
+const SPEED_EPS   = 0.06;  // vitesse min considérée comme "bouge"
+const IMPACT_EPS  = 0.12;  // vitesse normale minimale pour compter un impact
+const COLOR_COOLDOWN = 600; // ms anti-spam couleur
 
 /* ===== État ===== */
 let lumies=[], ball=null, drag=null, tStart=Date.now();
-let mode="night";                         // "night" ou "day"
-let currentPlayer=1;
-let playerColors={1:null,2:null};
+let mode="night"; // "night" ou "day"
+let currentPlayer=1;                       // 1 ou 2
+let playerColors={1:null,2:null};          // défini lors de la 1ère rouge touchée
 let gainedThisTurn=0, lostThisTurn=0;
 let gameOver=false, winColor=null, confetti=[];
-let showHint = true;
 
+/* suivi pour la narration */
+let turnChanges=[];
 
-/* ⬇️ Nouveau : mode de jeu */
-let gameMode = "pvp"; // "pvp" | "easy" | "hard"
-const modeSelect = document.getElementById('modeSelect');
-modeSelect.onchange = function(){
-  gameMode = this.value;
-  resetGame();           // on redémarre proprement avec ce mode
+/* ===== UI boutons "shadow" (utilisés par menu mobile) ===== */
+const btnMode = {
+  click: function(){
+    if(mode==="night"){ mode="day"; this.text="☀️ Jour"; }
+    else { mode="night"; this.text="🌙 Nuit"; }
+  },
+  set text(v){ /* no-op pour compat compat */ }
 };
+document.getElementById('btnNext') || (function(){ const b=document.createElement('button'); b.id='btnNext'; b.style.display='none'; document.body.appendChild(b); })();
+document.getElementById('btnReplay') || (function(){ const b=document.createElement('button'); b.id='btnReplay'; b.style.display='none'; document.body.appendChild(b); })();
 
-/* ===== UI ===== */
-const btnMode=document.getElementById('btnMode');
-btnMode.onclick=function(){
-  if(mode==="night"){ mode="day"; btnMode.textContent="☀️ Jour"; btnMode.style.background=COLOR_BLUE; btnMode.style.color="#fff"; }
-  else { mode="night"; btnMode.textContent="🌙 Nuit"; btnMode.style.background=COLOR_GREEN; btnMode.style.color="#000"; }
-};
+/* Actions */
 document.getElementById('btnNext').onclick=function(){
   if(ball){ ball.active=false; ball.vx=0; ball.vy=0; }
   endOfTurn();
 };
-document.getElementById('btnReplay').onclick=function(){
-  resetGame();
-};
+document.getElementById('btnReplay').onclick=function(){ resetGame(); };
 
+/* Scores (uniquement pour le menu — les compteurs desktop n'existent plus) */
 function countColors(){let g=0,b=0;for(let i=0;i<lumies.length;i++){const c=lumies[i].color; if(c==='green')g++; else if(c==='blue')b++;}return {g,b};}
-function updateScore(){const c=countColors(); elCntG.textContent=c.g; elCntB.textContent=c.b;}
+function updateScore(){
+  const c=countColors();
+  mCntG.textContent=c.g; mCntB.textContent=c.b;
+}
 
 /* ===== Init ===== */
 function resetGame(){
   playerColors={1:null,2:null};
   currentPlayer=1;
   gainedThisTurn=0; lostThisTurn=0;
+  turnChanges.length=0;
   gameOver=false; winColor=null; confetti.length=0;
   tStart=Date.now();
+  helpEl.style.display = 'block';
+  narrText.textContent = 'Nouveau tour. Lancez la balle !';
   layout();
 }
 
@@ -245,7 +293,7 @@ function layout(){
   const midX=canvas.width*0.5;
   const midY=canvas.height*0.5;
 
-  // Spacing responsive
+  // Spacing responsive (mobile: compacte si nécessaire)
   let spacing=LUMIE_SPACING, startX=midX - spacing*(LUMIES_N-1)/2;
   const isMobile=(canvas.width<=768) || (window.innerHeight>window.innerWidth);
   if(isMobile){
@@ -262,7 +310,7 @@ function layout(){
     lumies.push({x, y:midY, vx:0, vy:0, r:R_LUMIE, color:'red', lastHit:0});
   }
 
-  const launchOffset = Math.max(56, canvas.height*0.14);
+  const launchOffset = Math.max(56, canvas.height*0.14); // visible
   if(currentPlayer===1){
     ball={x:midX, y:canvas.height-launchOffset, vx:0, vy:0, r:R_BALL, active:false, age:0};
   }else{
@@ -299,14 +347,12 @@ canvas.addEventListener('mousedown',startDrag,{passive:false});
 canvas.addEventListener('touchstart',startDrag,{passive:false});
 function startDrag(e){
   if(gameOver) return;
-
-  // ⬇️ Si mode Solo et c'est au robot (joueur 2), on ignore l'entrée utilisateur
-  if(gameMode!=='pvp' && currentPlayer===2) return;
-
   const p=getPos(e);
-  if(!inBaseZone(p.y)) return;   // ne pas bloquer le scroll si hors zone de tir
-  e.preventDefault();            // on démarre un tir : bloque le scroll
+  if(!inBaseZone(p.y)) return;   // hors zone : ignore
+  e.preventDefault();
   drag={sx:p.x,sy:p.y,x:p.x,y:p.y};
+  helpEl.style.display = 'none';
+  turnChanges.length=0; // on repart pour ce tir
 }
 
 canvas.addEventListener('mousemove',moveDrag,{passive:false});
@@ -322,59 +368,65 @@ function endDrag(e){
   if(!drag) return;
   let vx=drag.x-drag.sx, vy=drag.y-drag.sy, len=Math.hypot(vx,vy);
   if(len>5){
-    const p=Math.min(len,MAX_DRAG);
+    const p=Math.min(len,MAX_DRAG);           // clamp puissance
     const ux=vx/len, uy=vy/len;
     const speed=p*POWER_K;
-    ball.x=drag.sx; ball.y=drag.sy;
-    ball.vx=ux*speed; ball.vy=uy*speed;
-    ball.active=true; ball.age=0;
-    showHint = false;   // 🔹 plus de message après 1er tir
+    ball.x=drag.sx; ball.y=drag.sy; ball.vx=ux*speed; ball.vy=uy*speed; ball.active=true; ball.age=0;
   }
   drag=null; updatePowerUI(null);
 }
 
-
 function updatePowerUI(d){
-  if(!d){ powPct.textContent='0%'; powBar.style.width='0%'; powBar.style.background=COLOR_BLUE; return; }
+  if(!d){
+    powPct.textContent='0%'; powBar.style.width='0%'; powBar.style.background=COLOR_BLUE;
+    mPowPct.textContent='0%'; mPowFill.style.width='0%'; mPowFill.style.background=COLOR_BLUE;
+    return;
+  }
   let vx=d.x-d.sx, vy=d.y-d.sy, len=Math.hypot(vx,vy), p=Math.min(len,MAX_DRAG);
   const pct=Math.round((p/MAX_DRAG)*100);
-  powPct.textContent=pct+'%'; powBar.style.width=pct+'%';
-  powBar.style.background = pct<40?COLOR_BLUE:(pct<75?COLOR_GREEN:'#ffb74a');
+  const col = pct<40?COLOR_BLUE:(pct<75?COLOR_GREEN:'#ffb74a');
+  powPct.textContent=pct+'%'; powBar.style.width=pct+'%'; powBar.style.background=col;
+  mPowPct.textContent=pct+'%'; mPowFill.style.width=pct+'%'; mPowFill.style.background=col;
 }
 
-/* ===== Règle couleurs ===== */
+/* ===== Règle couleurs + collecte pour narration ===== */
 function onLumieHit(L){
   const before=L.color;
+  let after=before;
+
   if(before==='red'){
-    L.color = (Math.random()<0.5)?'green':'blue';
-    // première attribution des équipes
+    after = (Math.random()<0.5)?'green':'blue';
+    L.color = after;
     if(!playerColors[1] && !playerColors[2]){
       playerColors[currentPlayer]=L.color;
       playerColors[(currentPlayer===1)?2:1] = (L.color==='green')?'blue':'green';
       updateBadge();
     }
   }else if(before==='green'){
-    L.color='blue';
+    after='blue'; L.color='blue';
   }else if(before==='blue'){
-    L.color='green';
+    after='green'; L.color='green';
   }
-  // scoring & victoire
+
+  // log pour narration
+  turnChanges.push({before, after});
+
   updateScore();
   checkWin();
 
-  // suivi des gains/pertes si équipes déjà fixées
   if(playerColors[1]){
     if(L.color===playerColors[currentPlayer] && before!==playerColors[currentPlayer]) gainedThisTurn++;
     if(before===playerColors[currentPlayer] && L.color!==playerColors[currentPlayer]) lostThisTurn++;
   }
 }
 
-// Anti-spam & “bouge → change”
-function tryToggleOnMove(L){
-  const now=performance.now();
-  if(!L.lastHit) L.lastHit=0;
-  if(now-L.lastHit < COLOR_COOLDOWN) return;
-  if(Math.hypot(L.vx,L.vy) < MOVE_EPS) return;
+/* Impact “réel” uniquement */
+function tryToggleOnMoveFromImpact(L, normalSpeed){
+  const now = performance.now();
+  if(!L.lastHit) L.lastHit = 0;
+  if(now - L.lastHit < COLOR_COOLDOWN) return;          // cooldown
+  if(normalSpeed < IMPACT_EPS) return;                  // trop faible
+  if(Math.hypot(L.vx, L.vy) < SPEED_EPS) return;        // ne bouge pas vraiment
   onLumieHit(L);
   L.lastHit = now;
 }
@@ -407,29 +459,56 @@ function step(){
   stepConfetti();
 
   // Balle jaune
-  if(ball && ball.active){
-    ball.x+=ball.vx; ball.y+=ball.vy; ball.vx*=FRICTION; ball.vy*=FRICTION; ball.age+=16;
-    if(ball.x<ball.r){ball.x=ball.r;ball.vx=-ball.vx*RESTIT;}
-    if(ball.x>canvas.width-ball.r){ball.x=canvas.width-ball.r;ball.vx=-ball.vx*RESTIT;}
-    if(ball.y<ball.r){ball.y=ball.r;ball.vy=-ball.vy*RESTIT;}
-    if(ball.y>canvas.height-ball.r){ball.y=canvas.height-ball.r;ball.vy=-ball.vy*RESTIT;}
+  if (ball && ball.active) {
+    // intégration + frottements
+    ball.x += ball.vx; 
+    ball.y += ball.vy; 
+    ball.vx *= FRICTION; 
+    ball.vy *= FRICTION; 
+    ball.age += 16;
 
-    for(let i=0;i<lumies.length;i++) collideBallLumie(ball, lumies[i]);
+    // rebonds uniquement sur les côtés
+    if (ball.x < ball.r) {
+      ball.x = ball.r;
+      ball.vx = -ball.vx * RESTIT;
+    }
+    if (ball.x > canvas.width - ball.r) {
+      ball.x = canvas.width - ball.r;
+      ball.vx = -ball.vx * RESTIT;
+    }
 
-    if(Math.abs(ball.vx)<0.05 && Math.abs(ball.vy)<0.05){ ball.active=false; endOfTurn(); }
+    // haut/bas = sortie de terrain -> fin de tour immédiate
+    if (ball.y < ball.r || ball.y > canvas.height - ball.r) {
+      ball.active = false;
+      endOfTurn();
+    } else {
+      // collisions avec les lumies uniquement si la balle est toujours en jeu
+      for (let i = 0; i < lumies.length; i++) {
+        collideBallLumie(ball, lumies[i]);
+      }
+
+      // seuil d'arrêt si elle s'immobilise sans sortir
+      if (Math.abs(ball.vx) < STOP_EPS) ball.vx = 0;
+      if (Math.abs(ball.vy) < STOP_EPS) ball.vy = 0;
+      if (ball.vx === 0 && ball.vy === 0) {
+        ball.active = false;
+        endOfTurn();
+      }
+    }
   }
 
-  // Lumies : frottements + murs + toggle on move
+  // Lumies : frottements + murs
   for(let i=0;i<lumies.length;i++){
     const L=lumies[i];
-    let hitWall=false;
     L.x+=L.vx; L.y+=L.vy; L.vx*=ROLL_F; L.vy*=ROLL_F;
 
-    if(L.x<L.r){L.x=L.r;L.vx=-L.vx*RESTIT;hitWall=true;}
-    if(L.x>canvas.width-L.r){L.x=canvas.width-L.r;L.vx=-L.vx*RESTIT;hitWall=true;}
-    if(L.y<L.r){L.y=L.r;L.vy=-L.vy*RESTIT;hitWall=true;}
-    if(L.y>canvas.height-L.r){L.y=canvas.height-L.r;L.vy=-L.vy*RESTIT;hitWall=true;}
-    if(hitWall) tryToggleOnMove(L);
+    if(L.x<L.r){L.x=L.r;L.vx=-L.vx*RESTIT;}
+    if(L.x>canvas.width-L.r){L.x=canvas.width-L.r;L.vx=-L.vx*RESTIT;}
+    if(L.y<L.r){L.y=L.r;L.vy=-L.vy*RESTIT;}
+    if(L.y>canvas.height-L.r){L.y=canvas.height-L.r;L.vy=-L.vy*RESTIT;}
+
+    if(Math.abs(L.vx) < STOP_EPS) L.vx=0;
+    if(Math.abs(L.vy) < STOP_EPS) L.vy=0;
   }
 
   // Collisions entre lumies
@@ -449,28 +528,21 @@ function collideBallLumie(B,L){
   const nx=dx/d, ny=dy/d;
   const overlap=minD-d;
 
-  // Séparation géométrique (petit push-out)
+  // séparation
   B.x-=nx*overlap*0.5; B.y-=ny*overlap*0.5;
   L.x+=nx*overlap*0.5; L.y+=ny*overlap*0.5;
 
-  // Vitesse relative sur la normale
+  // impulsion élastique (signe correct)
   const rvx=B.vx-L.vx, rvy=B.vy-L.vy;
   const vn = rvx*nx + rvy*ny;
+  if(vn>0) return;
 
-  // ⚠️ Même en séparation (vn>0), on considère qu'il y a eu contact -> toggle possible
-  if (vn > 0){
-    tryToggleOnMove(L);
-    return;
-  }
-
-  // Impulsion élastique (masses égales)
   const j=-(1+RESTIT)*vn/2;
   const jx=j*nx, jy=j*ny;
   B.vx -= jx; B.vy -= jy;
   L.vx += jx; L.vy += jy;
 
-  // Changement couleur déclenché par le mouvement
-  tryToggleOnMove(L);
+  tryToggleOnMoveFromImpact(L, Math.abs(vn));
 }
 
 function collideLumies(A,B){
@@ -484,105 +556,87 @@ function collideLumies(A,B){
   const nx=dx/d, ny=dy/d;
   const overlap=minD-d;
 
-  // Séparation
   A.x-=nx*overlap*0.5; A.y-=ny*overlap*0.5;
   B.x+=nx*overlap*0.5; B.y+=ny*overlap*0.5;
 
   const rvx=A.vx-B.vx, rvy=A.vy-B.vy;
   const vn=rvx*nx + rvy*ny;
-
-  if (vn > 0){
-    // Même logique : contact réel, on autorise le toggle
-    tryToggleOnMove(A);
-    tryToggleOnMove(B);
-    return;
-  }
+  if(vn>0) return;
 
   const j=-(1+RESTIT)*vn/2;
   const jx=j*nx, jy=j*ny;
   A.vx -= jx; A.vy -= jy;
   B.vx += jx; B.vy += jy;
 
-  tryToggleOnMove(A);
-  tryToggleOnMove(B);
+  tryToggleOnMoveFromImpact(A, Math.abs(vn));
+  tryToggleOnMoveFromImpact(B, Math.abs(vn));
+
+  // anti-collage à l'arrêt
+  if (Math.hypot(A.vx,B.vx) + Math.hypot(A.vy,B.vy) < 0.02){
+    const eps = 0.5;
+    A.x -= nx*eps; A.y -= ny*eps;
+    B.x += nx*eps; B.y += ny*eps;
+    A.vx*=0.9; A.vy*=0.9; B.vx*=0.9; B.vy*=0.9;
+  }
 }
 
+/* ===== Tours + Narration ===== */
+function teamLabel(playerIdx){
+  if(!playerColors[1]) return "Le joueur "+playerIdx;
+  return "L’équipe " + (playerColors[playerIdx]==='green' ? "verte" : "bleue");
+}
 
+function buildNarration(prevPlayer, willReplay, changes){
+  if(changes.length===0){
+    return teamLabel(prevPlayer)+" a joué. Aucune Lumie n’a changé. " + (willReplay?"Elle rejoue.":"Elle ne rejoue pas.");
+  }
+  const toG = changes.filter(c=>c.after==='green').length;
+  const toB = changes.filter(c=>c.after==='blue').length;
+  const fromRed = changes.filter(c=>c.before==='red');
 
-/* ===== Tours ===== */
-function endOfTurn(){
-  if(!playerColors[1]){ // tant que couleurs non fixées, alternance simple
-    currentPlayer = (currentPlayer===1)?2:1;
-    repositionBall(); updateBadge();
-
-    // ⬇️ Si mode Solo et c'est au robot, jouer automatiquement
-    if(gameMode!=='pvp' && currentPlayer===2 && !gameOver){
-      setTimeout(robotPlay, 800);
+  const parts=[];
+  if(changes.length===1){
+    const c=changes[0];
+    if(c.before==='red'){
+      parts.push("une Lumie rouge qui est devenue aléatoirement "+(c.after==='green'?"verte":"bleue"));
+    }else{
+      parts.push("une Lumie "+(c.before==='green'?"verte":"bleue")+" qui est devenue "+(c.after==='green'?"verte":"bleue"));
     }
-    return;
+  }else{
+    // plusieurs
+    if(toG && toB) parts.push("plusieurs Lumies qui sont devenues vertes et bleues");
+    else if(toG)   parts.push("plusieurs Lumies qui sont devenues vertes");
+    else if(toB)   parts.push("plusieurs Lumies qui sont devenues bleues");
   }
 
-  if(gainedThisTurn>0 && lostThisTurn===0){
+  return teamLabel(prevPlayer)+" a lancé le Luminator sur "+parts.join(", ")+". " + (willReplay?"Elle rejoue.":"Elle ne rejoue pas.");
+}
+
+function endOfTurn(){
+  // narration basée sur l’état AVANT changement de joueur
+  const prevPlayer = currentPlayer;
+  const willReplay = (!playerColors[1]) ? false : (gainedThisTurn>0 && lostThisTurn===0);
+  narrText.textContent = buildNarration(prevPlayer, willReplay, turnChanges);
+  turnChanges.length=0;
+
+  if(!playerColors[1]){ // tant que couleurs non fixées, alternance simple
+    currentPlayer = (currentPlayer===1)?2:1;
+    repositionBall(); updateBadge(); return;
+  }
+  if(willReplay){
     // rejoue (on garde currentPlayer)
   }else{
     currentPlayer = (currentPlayer===1)?2:1;
   }
   gainedThisTurn=0; lostThisTurn=0;
   repositionBall(); updateBadge();
-
-  // ⬇️ mode Solo : robot joue quand c'est à lui
-  if(gameMode!=='pvp' && currentPlayer===2 && !gameOver){
-    setTimeout(robotPlay, 800);
-  }
 }
-
 function repositionBall(){
   const midX=canvas.width*0.5;
   const launchOffset=Math.max(56, canvas.height*0.14);
   if(currentPlayer===1){ ball.x=midX; ball.y=canvas.height-launchOffset; }
   else { ball.x=midX; ball.y=launchOffset; }
   ball.vx=0; ball.vy=0; ball.active=false;
-}
-
-/* ⬇️ Nouveau : IA joueur 2 */
-function robotPlay(){
-  if(gameOver) return;
-
-  // Choix d'une cible
-  let target = null;
-
-  if(gameMode === 'easy' || !playerColors[1]){
-    // Facile : cible au hasard
-    target = lumies[Math.floor(Math.random()*lumies.length)];
-  } else {
-    // Difficile : privilégier une boule qui n'est pas déjà à sa couleur
-    const myCol = playerColors[2]; // couleur du robot
-    const candidates = lumies.filter(l => l.color !== myCol);
-    target = (candidates.length? candidates[Math.floor(Math.random()*candidates.length)]
-                               : lumies[Math.floor(Math.random()*lumies.length)]);
-  }
-
-  // Direction depuis la base du joueur 2 (la balle y est déjà repositionnée)
-  const dx = target.x - ball.x;
-  const dy = target.y - ball.y;
-  const len = Math.hypot(dx,dy) || 1;
-  const ux = dx/len, uy = dy/len;
-
-  // Puissance selon mode
-  let power;
-  if(gameMode === 'easy'){
-    power = 0.45 + Math.random()*0.25; // 45% à 70%
-  } else if (gameMode === 'hard'){
-    power = 0.65 + Math.random()*0.25; // 65% à 90%
-  } else {
-    power = 0.6;
-  }
-  const speed = MAX_DRAG * POWER_K * power;
-
-  ball.vx = ux * speed;
-  ball.vy = uy * speed;
-  ball.active = true;
-  ball.age = 0;
 }
 
 /* ===== Rendu ===== */
@@ -629,25 +683,10 @@ function draw(){
   }
 
   // luminator
-if(ball){
-  ctx.beginPath();
-  ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2);
-  ctx.fillStyle=COLOR_GOLD;
-  ctx.fill();
-  ctx.lineWidth=3;
-  ctx.strokeStyle='rgba(255,255,255,0.75)';
-  ctx.stroke();
-
-  // 🔹 message de départ
-  if(showHint){
-    ctx.font="18px Arial";
-    ctx.textAlign="center";
-    ctx.textBaseline="bottom";
-    ctx.fillStyle="#fff";
-    ctx.fillText("Lancez la balle en visant les boules", ball.x, ball.y - R_BALL - 20);
+  if(ball){
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,R_BALL,0,Math.PI*2); ctx.fillStyle=COLOR_GOLD; ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.stroke();
   }
-  }
-
 
   // flèche de visée
   if(drag){
