@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>LUMIOS - Next Gen</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div id="app">
+    <!-- HUD Top -->
+    <div class="hud">
+      <div class="hud-panel glass">
+        <div id="playerBadge" style="border-bottom: 2px solid transparent;">JOUEUR 1</div>
+      </div>
+
+      <div class="hud-panel glass">
+        <div class="score-display">
+          <div class="score-item">
+            <div class="dot green"></div>
+            <span id="scoreGreen">0</span>
+          </div>
+          <div class="score-item">
+            <div class="dot blue"></div>
+            <span id="scoreBlue">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Area -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Power Meter UI (Hidden by default) -->
+    <div class="power-indicator">
+      <div class="power-bar" id="powerBar"></div>
+    </div>
+
+    <!-- Toast / Narration -->
+    <div class="toast" id="toast">Prêt ?</div>
+
+    <!-- Bottom Controls -->
+    <div class="controls">
+      <button class="btn glass" onclick="location.reload()">↺ Reset</button>
+      <a href="https://www.lumios-le-jeu.fr/" target="_blank" class="btn btn-primary">🎁 Acheter le Jeu</a>
+    </div>
+  </div>
+
+  <!-- Modal Overlay (e.g. for Rules or Win) -->
+  <div id="overlay" class="overlay">
+    <div class="modal glass">
+      <h2 id="modalTitle">Titre</h2>
+      <p id="modalMsg">Message...</p>
+      <button class="btn btn-primary" onclick="window.GAME.closeModal()">OK</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+
+</body>
+
+</html>
