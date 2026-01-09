@@ -14,7 +14,7 @@ const CONFIG = {
   },
   physics: {
     friction: 0.945,         // Drag for LUMIES (Standard)
-    playerFriction: 0.975,   // Drag for PLAYER (Lower drag = rolls further)
+    playerFriction: 0.98,    // Drag for PLAYER (Higher number = rolls further. 0.98 > 0.935)
     angularFriction: 0.95,   // Rotational decay
     restitution: 0.8,        // Bounciness
     stopThreshold: 0.05,     // Speed to snap to 0
