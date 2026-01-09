@@ -13,7 +13,8 @@ const CONFIG = {
     white: '#f8fafc'
   },
   physics: {
-    friction: 0.94,         // Linear velocity decay (Lower = more drag)
+    friction: 0.945,         // Drag for LUMIES (Standard)
+    playerFriction: 0.975,   // Drag for PLAYER (Lower drag = rolls further)
     angularFriction: 0.95,   // Rotational decay
     restitution: 0.8,        // Bounciness
     stopThreshold: 0.05,     // Speed to snap to 0
@@ -72,8 +73,11 @@ class Ball {
     this.angle += this.angularVelocity;
 
     // 2. Friction
-    this.vx *= CONFIG.physics.friction;
-    this.vy *= CONFIG.physics.friction;
+    // Use specific friction for Player vs Lumies
+    const f = this.isLumie ? CONFIG.physics.friction : CONFIG.physics.playerFriction;
+
+    this.vx *= f;
+    this.vy *= f;
     this.angularVelocity *= CONFIG.physics.angularFriction;
 
     // 3. "Eccentric Mass" Simulation (Wobble & Curve)
@@ -346,7 +350,7 @@ class Game {
     let moving = false;
     const allBalls = [...this.lumies, this.playerBall];
 
-    // 3-SECOND RULE:
+    // 3-SECOND RULE (Reverted to 3s as requested):
     // If turn has lasted > 3 seconds, force stop with heavy damping
     const elapsed = Date.now() - (this.turnStartTime || 0);
     const timeLimitReached = elapsed > 3000;
